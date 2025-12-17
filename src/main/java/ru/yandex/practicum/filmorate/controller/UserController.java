@@ -4,6 +4,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.User;
+import ru.yandex.practicum.filmorate.exception.NotFoundException;
+
 
 import java.time.LocalDate;
 import java.util.*;
@@ -31,13 +33,14 @@ public class UserController {
 
         if (user.getId() == null || !users.containsKey(user.getId())) {
             log.error("Пользователь с id {} не найден", user.getId());
-            throw new ValidationException("Пользователь с таким id не найден");
+            throw new NotFoundException("Пользователь с таким id не найден");
         }
 
         users.put(user.getId(), user);
         log.info("Обновлён пользователь: {}", user);
         return user;
     }
+
 
     @GetMapping
     public Collection<User> getAllUsers() {
