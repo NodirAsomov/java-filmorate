@@ -41,9 +41,9 @@ public class UserController {
         return user;
     }
 
-
     @GetMapping
     public Collection<User> getAllUsers() {
+        log.info("Запрошен список всех пользователей");
         return users.values();
     }
 
@@ -52,16 +52,13 @@ public class UserController {
             log.error("Некорректный email: {}", user.getEmail());
             throw new ValidationException("Email должен содержать символ @");
         }
-
         if (user.getLogin() == null || user.getLogin().isBlank() || user.getLogin().contains(" ")) {
             log.error("Некорректный логин: {}", user.getLogin());
             throw new ValidationException("Логин не может быть пустым или содержать пробелы");
         }
-
         if (user.getName() == null || user.getName().isBlank()) {
             user.setName(user.getLogin());
         }
-
         if (user.getBirthday() == null || user.getBirthday().isAfter(LocalDate.now())) {
             throw new ValidationException("Дата рождения не может быть в будущем");
         }

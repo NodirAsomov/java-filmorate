@@ -6,7 +6,6 @@ import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.Film;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
 
-
 import java.time.LocalDate;
 import java.util.*;
 
@@ -14,6 +13,8 @@ import java.util.*;
 @RequestMapping("/films")
 @Slf4j
 public class FilmController {
+
+    private static final LocalDate CINEMA_BIRTHDAY = LocalDate.of(1895, 12, 28);
 
     private final Map<Integer, Film> films = new HashMap<>();
     private int nextId = 1;
@@ -41,9 +42,9 @@ public class FilmController {
         return film;
     }
 
-
     @GetMapping
     public Collection<Film> getAllFilms() {
+        log.info("Запрошен список всех фильмов");
         return films.values();
     }
 
@@ -52,16 +53,13 @@ public class FilmController {
             log.error("Ошибка валидации: пустое название фильма");
             throw new ValidationException("Название фильма не может быть пустым");
         }
-
         if (film.getDescription() != null && film.getDescription().length() > 200) {
             throw new ValidationException("Описание не более 200 символов");
         }
-
         if (film.getReleaseDate() == null ||
-                film.getReleaseDate().isBefore(LocalDate.of(1895, 12, 28))) {
+                film.getReleaseDate().isBefore(CINEMA_BIRTHDAY)) {
             throw new ValidationException("Дата релиза не может быть раньше 28.12.1895");
         }
-
         if (film.getDuration() == null || film.getDuration() <= 0) {
             throw new ValidationException("Продолжительность должна быть положительной");
         }
