@@ -32,11 +32,11 @@ public class UserService {
         User user = userStorage.getUser(userId);
         User friend = userStorage.getUser(friendId);
 
-        if (!user.getFriends().remove(friendId)) {
-            throw new ValidationException("Пользователь не является другом");
-        }
+
+        user.getFriends().remove(friendId);
         friend.getFriends().remove(userId);
     }
+
 
     public List<User> getFriends(long userId) {
         User user = userStorage.getUser(userId);
