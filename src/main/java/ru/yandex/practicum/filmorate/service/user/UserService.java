@@ -1,72 +1,57 @@
 package ru.yandex.practicum.filmorate.service.user;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.User;
 import ru.yandex.practicum.filmorate.storage.user.UserStorage;
 
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 @Service
+@RequiredArgsConstructor
 public class UserService {
-
     private final UserStorage userStorage;
 
-    @Autowired
-    public UserService(UserStorage userStorage) {
-        this.userStorage = userStorage;
-    }
-
-    public User create(User user) {
-        return userStorage.create(user);
-    }
-
-    public User update(User user) {
-        return userStorage.update(user);
-    }
-
-    public List<User> findAll() {
-        return userStorage.findAll().stream().toList();
-    }
-
-    public User getById(Integer id) {
-        return userStorage.getById(id);
-    }
-
-    public void addFriend(Integer userId, Integer friendId) {
-        if (userId.equals(friendId)) {
-            throw new IllegalArgumentException("Нельзя добавить себя в друзья");
+    public void addFriend(long userId, long friendId) {
+        if (userId == friendId) {
+            throw new ValidationException("Нельзя добавить самого себя в друзья");
         }
-
-        User user = userStorage.getById(userId);
-        User friend = userStorage.getById(friendId);
-
-        user.getFriends().add(friendId);
+        User user = userStorage.getUser(userId);
+        User friend = userStorage.getUser(friendId);
+        if (!user.getFriends().add(friendId)) {
+            throw new ValidationException("Пользователь уже в друзьях");
+        }
         friend.getFriends().add(userId);
     }
 
-    public void removeFriend(Integer userId, Integer friendId) {
-        User user = userStorage.getById(userId);
-        User friend = userStorage.getById(friendId);
-
-        user.getFriends().remove(friendId);
+    public void removeFriend(long userId, long friendId) {
+        User user = userStorage.getUser(userId);
+        User friend = userStorage.getUser(friendId);
+        if (!user.getFriends().remove(friendId)) {
+            throw new ValidationException("Пользователь не является другом");
+        }
         friend.getFriends().remove(userId);
     }
 
-    public List<User> getFriends(Integer userId) {
-        return userStorage.getById(userId).getFriends().stream()
-                .map(userStorage::getById)
-                .toList();
+    public List<User> getFriends(long userId) {
+        User user = userStorage.getUser(userId);
+        List<User> friends = new ArrayList<>();
+        for (Long id : user.getFriends()) {
+            friends.add(userStorage.getUser(id));
+        }
+        return friends;
     }
 
-    public List<User> getCommonFriends(Integer userId, Integer otherId) {
-        Set<Integer> common = new HashSet<>(userStorage.getById(userId).getFriends());
-        common.retainAll(userStorage.getById(otherId).getFriends());
-
-        return common.stream()
-                .map(userStorage::getById)
-                .toList();
+    public List<User> getCommonFriends(long userId, long otherId) {
+        Set<Long> common = new HashSet<>(userStorage.getUser(userId).getFriends());
+        common.retainAll(userStorage.getUser(otherId).getFriends());
+        List<User> result = new ArrayList<>();
+        for (Long id : common) {
+            result.add(userStorage.getUser(id));
+        }
+        return result;
     }
 }
+
+

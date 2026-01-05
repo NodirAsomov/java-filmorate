@@ -25,16 +25,17 @@ class FilmorateApplicationTests {
     @BeforeEach
     void setUp() {
 
+
         InMemoryFilmStorage filmStorage = new InMemoryFilmStorage();
         InMemoryUserStorage userStorage = new InMemoryUserStorage();
 
 
-        FilmService filmService = new FilmService(filmStorage, userStorage);
+        FilmService filmService = new FilmService(filmStorage);
         UserService userService = new UserService(userStorage);
 
 
-        filmController = new FilmController(filmService);
-        userController = new UserController(userService);
+        filmController = new FilmController(filmService, filmStorage);
+        userController = new UserController(userService, userStorage);
     }
 
     @Test
@@ -45,7 +46,7 @@ class FilmorateApplicationTests {
         film.setReleaseDate(LocalDate.of(2014, 11, 7));
         film.setDuration(169);
 
-        Film saved = filmController.addFilm(film);
+        Film saved = filmController.createFilm(film); // заменили addFilm -> createFilm
         assertNotNull(saved.getId());
         assertEquals("Интерстеллар", saved.getName());
     }
@@ -59,7 +60,7 @@ class FilmorateApplicationTests {
         film.setDuration(120);
 
         ValidationException ex = assertThrows(ValidationException.class,
-                () -> filmController.addFilm(film));
+                () -> filmController.createFilm(film)); // заменили addFilm -> createFilm
         assertEquals("Название фильма не может быть пустым", ex.getMessage());
     }
 
@@ -71,7 +72,7 @@ class FilmorateApplicationTests {
         film.setReleaseDate(LocalDate.of(2000, 1, 1));
         film.setDuration(100);
 
-        filmController.addFilm(film);
+        filmController.createFilm(film); // заменили addFilm -> createFilm
         Collection<Film> films = filmController.getAllFilms();
         assertFalse(films.isEmpty());
     }
@@ -125,3 +126,4 @@ class FilmorateApplicationTests {
         assertFalse(users.isEmpty());
     }
 }
+
