@@ -23,20 +23,18 @@ class FilmorateApplicationTests {
     private UserController userController;
 
     @BeforeEach
+
     void setUp() {
-
-
         InMemoryFilmStorage filmStorage = new InMemoryFilmStorage();
         InMemoryUserStorage userStorage = new InMemoryUserStorage();
 
-
-        FilmService filmService = new FilmService(filmStorage);
+        FilmService filmService = new FilmService(filmStorage, userStorage);
         UserService userService = new UserService(userStorage);
-
 
         filmController = new FilmController(filmService, filmStorage);
         userController = new UserController(userService, userStorage);
     }
+
 
     @Test
     void shouldAddValidFilm() {
@@ -46,7 +44,7 @@ class FilmorateApplicationTests {
         film.setReleaseDate(LocalDate.of(2014, 11, 7));
         film.setDuration(169);
 
-        Film saved = filmController.createFilm(film); // заменили addFilm -> createFilm
+        Film saved = filmController.createFilm(film);
         assertNotNull(saved.getId());
         assertEquals("Интерстеллар", saved.getName());
     }

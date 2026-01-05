@@ -2,9 +2,11 @@ package ru.yandex.practicum.filmorate.service.film;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.Film;
 import ru.yandex.practicum.filmorate.storage.film.FilmStorage;
+import ru.yandex.practicum.filmorate.storage.user.UserStorage;
 
 import java.util.List;
 
@@ -12,8 +14,12 @@ import java.util.List;
 @RequiredArgsConstructor
 public class FilmService {
     private final FilmStorage filmStorage;
+    private final UserStorage userStorage;
 
     public void addLike(long filmId, long userId) {
+        if (userStorage.getUser(userId) == null) {
+            throw new NotFoundException("Пользователь не найден");
+        }
         Film film = filmStorage.getFilm(filmId);
         if (!film.getLikes().add(userId)) {
             throw new ValidationException("Пользователь уже поставил лайк этому фильму");
@@ -21,6 +27,9 @@ public class FilmService {
     }
 
     public void removeLike(long filmId, long userId) {
+        if (userStorage.getUser(userId) == null) {
+            throw new NotFoundException("Пользователь не найден");
+        }
         Film film = filmStorage.getFilm(filmId);
         if (!film.getLikes().remove(userId)) {
             throw new ValidationException("Лайк от пользователя не найден");

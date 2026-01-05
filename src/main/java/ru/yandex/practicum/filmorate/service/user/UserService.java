@@ -2,6 +2,7 @@ package ru.yandex.practicum.filmorate.service.user;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.User;
 import ru.yandex.practicum.filmorate.storage.user.UserStorage;
@@ -17,8 +18,17 @@ public class UserService {
         if (userId == friendId) {
             throw new ValidationException("Нельзя добавить самого себя в друзья");
         }
+
         User user = userStorage.getUser(userId);
         User friend = userStorage.getUser(friendId);
+
+        if (user == null) {
+            throw new NotFoundException("Пользователь с id " + userId + " не найден");
+        }
+        if (friend == null) {
+            throw new NotFoundException("Пользователь с id " + friendId + " не найден");
+        }
+
         if (!user.getFriends().add(friendId)) {
             throw new ValidationException("Пользователь уже в друзьях");
         }
@@ -28,6 +38,14 @@ public class UserService {
     public void removeFriend(long userId, long friendId) {
         User user = userStorage.getUser(userId);
         User friend = userStorage.getUser(friendId);
+
+        if (user == null) {
+            throw new NotFoundException("Пользователь с id " + userId + " не найден");
+        }
+        if (friend == null) {
+            throw new NotFoundException("Пользователь с id " + friendId + " не найден");
+        }
+
         if (!user.getFriends().remove(friendId)) {
             throw new ValidationException("Пользователь не является другом");
         }
@@ -36,6 +54,10 @@ public class UserService {
 
     public List<User> getFriends(long userId) {
         User user = userStorage.getUser(userId);
+        if (user == null) {
+            throw new NotFoundException("Пользователь с id " + userId + " не найден");
+        }
+
         List<User> friends = new ArrayList<>();
         for (Long id : user.getFriends()) {
             friends.add(userStorage.getUser(id));
@@ -44,8 +66,19 @@ public class UserService {
     }
 
     public List<User> getCommonFriends(long userId, long otherId) {
-        Set<Long> common = new HashSet<>(userStorage.getUser(userId).getFriends());
-        common.retainAll(userStorage.getUser(otherId).getFriends());
+        User user = userStorage.getUser(userId);
+        User other = userStorage.getUser(otherId);
+
+        if (user == null) {
+            throw new NotFoundException("Пользователь с id " + userId + " не найден");
+        }
+        if (other == null) {
+            throw new NotFoundException("Пользователь с id " + otherId + " не найден");
+        }
+
+        Set<Long> common = new HashSet<>(user.getFriends());
+        common.retainAll(other.getFriends());
+
         List<User> result = new ArrayList<>();
         for (Long id : common) {
             result.add(userStorage.getUser(id));
@@ -53,5 +86,6 @@ public class UserService {
         return result;
     }
 }
+
 
 
