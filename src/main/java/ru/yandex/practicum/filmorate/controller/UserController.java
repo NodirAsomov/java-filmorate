@@ -16,7 +16,7 @@ public class UserController {
 
     @PostMapping
     public User createUser(@RequestBody User user) {
-        return userService.addUser(user);
+        return userService.createUser(user);
     }
 
     @PutMapping
@@ -54,3 +54,5 @@ public class UserController {
         return userService.getCommonFriends(id, otherId);
     }
 }
+
+

@@ -19,7 +19,7 @@ public class UserService {
     private final UserStorage userStorage;
 
 
-    public User addUser(User user) {
+    public User createUser(User user) {
         validateUser(user);
         if (user.getName() == null || user.getName().isBlank()) {
             user.setName(user.getLogin());
@@ -29,11 +29,10 @@ public class UserService {
 
     public User updateUser(User user) {
         validateUser(user);
+        getUserOrThrow(user.getId());
         if (user.getName() == null || user.getName().isBlank()) {
             user.setName(user.getLogin());
         }
-
-        getUserOrThrow(user.getId());
         return userStorage.updateUser(user);
     }
 
@@ -53,7 +52,6 @@ public class UserService {
 
     public void addFriend(long userId, long friendId) {
         validateDifferentUsers(userId, friendId);
-
         User user = getUserOrThrow(userId);
         User friend = getUserOrThrow(friendId);
 
@@ -65,7 +63,6 @@ public class UserService {
 
     public void removeFriend(long userId, long friendId) {
         validateDifferentUsers(userId, friendId);
-
         User user = getUserOrThrow(userId);
         User friend = getUserOrThrow(friendId);
 
@@ -75,15 +72,13 @@ public class UserService {
 
     public List<User> getFriends(long userId) {
         User user = getUserOrThrow(userId);
-
         return user.getFriends().stream()
                 .map(this::getUserOrThrow)
-                .toList();
+                .collect(Collectors.toList());
     }
 
     public List<User> getCommonFriends(long userId, long otherId) {
         validateDifferentUsers(userId, otherId);
-
         User user = getUserOrThrow(userId);
         User other = getUserOrThrow(otherId);
 
@@ -93,13 +88,16 @@ public class UserService {
 
         return commonIds.stream()
                 .map(this::getUserOrThrow)
-                .toList();
+                .collect(Collectors.toList());
     }
 
 
     private User getUserOrThrow(long userId) {
-        return userStorage.getUser(userId)
-                .orElseThrow(() -> new NotFoundException("Пользователь с id " + userId + " не найден"));
+        User user = userStorage.getUser(userId);
+        if (user == null) {
+            throw new NotFoundException("Пользователь с id " + userId + " не найден");
+        }
+        return user;
     }
 
     private void validateDifferentUsers(long firstId, long secondId) {
@@ -120,5 +118,4 @@ public class UserService {
         }
     }
 }
-
 
