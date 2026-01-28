@@ -24,7 +24,7 @@ public class ErrorHandler {
 
     @ExceptionHandler(Throwable.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
-    public Map<String, String> handleOther(Throwable e) {
+    public Map<String, String> handleOtherExceptions(Throwable e) {
         return Map.of("error", "Произошла непредвиденная ошибка");
     }
 }
