@@ -2,25 +2,60 @@ package ru.yandex.practicum.filmorate.service.user;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.User;
 import ru.yandex.practicum.filmorate.storage.user.UserStorage;
 
-import java.util.*;
-
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class UserService {
+
     private final UserStorage userStorage;
 
-    public void addFriend(long userId, long friendId) {
-        if (userId == friendId) {
-            throw new ValidationException("Нельзя добавить самого себя в друзья");
+
+    public User addUser(User user) {
+        validateUser(user);
+        if (user.getName() == null || user.getName().isBlank()) {
+            user.setName(user.getLogin());
+        }
+        return userStorage.addUser(user);
+    }
+
+    public User updateUser(User user) {
+        validateUser(user);
+        if (user.getName() == null || user.getName().isBlank()) {
+            user.setName(user.getLogin());
         }
 
-        User user = userStorage.getUser(userId);
-        User friend = userStorage.getUser(friendId);
+        getUserOrThrow(user.getId());
+        return userStorage.updateUser(user);
+    }
+
+    public User getUser(long id) {
+        return getUserOrThrow(id);
+    }
+
+    public void deleteUser(long id) {
+        getUserOrThrow(id);
+        userStorage.deleteUser(id);
+    }
+
+    public List<User> getAllUsers() {
+        return userStorage.getAllUsers();
+    }
+
+
+    public void addFriend(long userId, long friendId) {
+        validateDifferentUsers(userId, friendId);
+
+        User user = getUserOrThrow(userId);
+        User friend = getUserOrThrow(friendId);
 
         if (!user.getFriends().add(friendId)) {
             throw new ValidationException("Пользователь уже в друзьях");
@@ -29,36 +64,60 @@ public class UserService {
     }
 
     public void removeFriend(long userId, long friendId) {
-        User user = userStorage.getUser(userId);
-        User friend = userStorage.getUser(friendId);
+        validateDifferentUsers(userId, friendId);
 
+        User user = getUserOrThrow(userId);
+        User friend = getUserOrThrow(friendId);
 
         user.getFriends().remove(friendId);
         friend.getFriends().remove(userId);
     }
 
-
     public List<User> getFriends(long userId) {
-        User user = userStorage.getUser(userId);
-        List<User> friends = new ArrayList<>();
-        for (Long id : user.getFriends()) {
-            friends.add(userStorage.getUser(id));
-        }
-        return friends;
+        User user = getUserOrThrow(userId);
+
+        return user.getFriends().stream()
+                .map(this::getUserOrThrow)
+                .toList();
     }
 
     public List<User> getCommonFriends(long userId, long otherId) {
-        User user = userStorage.getUser(userId);
-        User other = userStorage.getUser(otherId);
+        validateDifferentUsers(userId, otherId);
 
-        Set<Long> common = new HashSet<>(user.getFriends());
-        common.retainAll(other.getFriends());
+        User user = getUserOrThrow(userId);
+        User other = getUserOrThrow(otherId);
 
-        List<User> result = new ArrayList<>();
-        for (Long id : common) {
-            result.add(userStorage.getUser(id));
+        Set<Long> commonIds = user.getFriends().stream()
+                .filter(other.getFriends()::contains)
+                .collect(Collectors.toSet());
+
+        return commonIds.stream()
+                .map(this::getUserOrThrow)
+                .toList();
+    }
+
+
+    private User getUserOrThrow(long userId) {
+        return userStorage.getUser(userId)
+                .orElseThrow(() -> new NotFoundException("Пользователь с id " + userId + " не найден"));
+    }
+
+    private void validateDifferentUsers(long firstId, long secondId) {
+        if (firstId == secondId) {
+            throw new ValidationException("Операция с одним и тем же пользователем недопустима");
         }
-        return result;
+    }
+
+    private void validateUser(User user) {
+        if (user.getEmail() == null || !user.getEmail().contains("@")) {
+            throw new ValidationException("Email должен содержать символ @");
+        }
+        if (user.getLogin() == null || user.getLogin().isBlank() || user.getLogin().contains(" ")) {
+            throw new ValidationException("Логин не может быть пустым или содержать пробелы");
+        }
+        if (user.getBirthday() != null && user.getBirthday().isAfter(LocalDate.now())) {
+            throw new ValidationException("Дата рождения не может быть в будущем");
+        }
     }
 }
 
