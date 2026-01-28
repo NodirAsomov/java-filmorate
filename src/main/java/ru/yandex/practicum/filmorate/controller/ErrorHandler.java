@@ -9,6 +9,7 @@ import ru.yandex.practicum.filmorate.exception.ValidationException;
 
 import java.util.Map;
 
+
 @RestControllerAdvice
 public class ErrorHandler {
 

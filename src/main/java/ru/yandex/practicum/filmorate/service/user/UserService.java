@@ -1,16 +1,13 @@
 package ru.yandex.practicum.filmorate.service.user;
-
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.User;
 import ru.yandex.practicum.filmorate.storage.user.UserStorage;
-
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
+
 
 @Service
 @RequiredArgsConstructor
@@ -74,7 +71,7 @@ public class UserService {
         User user = getUserOrThrow(userId);
         return user.getFriends().stream()
                 .map(this::getUserOrThrow)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     public List<User> getCommonFriends(long userId, long otherId) {
@@ -82,13 +79,10 @@ public class UserService {
         User user = getUserOrThrow(userId);
         User other = getUserOrThrow(otherId);
 
-        Set<Long> commonIds = user.getFriends().stream()
+        return user.getFriends().stream()
                 .filter(other.getFriends()::contains)
-                .collect(Collectors.toSet());
-
-        return commonIds.stream()
                 .map(this::getUserOrThrow)
-                .collect(Collectors.toList());
+                .toList();
     }
 
 
@@ -118,4 +112,3 @@ public class UserService {
         }
     }
 }
-
