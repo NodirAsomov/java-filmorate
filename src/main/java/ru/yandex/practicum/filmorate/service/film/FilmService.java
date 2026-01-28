@@ -20,7 +20,6 @@ public class FilmService {
     private final FilmStorage filmStorage;
     private final UserStorage userStorage;
 
-
     public Film createFilm(Film film) {
         validateFilm(film);
         return filmStorage.addFilm(film);
@@ -28,7 +27,6 @@ public class FilmService {
 
     public Film updateFilm(Film film) {
         validateFilm(film);
-
         getFilmOrThrow(film.getId());
         return filmStorage.updateFilm(film);
     }
@@ -40,7 +38,6 @@ public class FilmService {
     public List<Film> getAllFilms() {
         return filmStorage.getAllFilms();
     }
-
 
     public void addLike(long filmId, long userId) {
         Film film = getFilmOrThrow(filmId);
@@ -73,16 +70,27 @@ public class FilmService {
 
 
     private void validateFilm(Film film) {
+
         if (film.getName() == null || film.getName().isBlank()) {
             throw new ValidationException("Название фильма не может быть пустым");
         }
+
+
+        if (film.getDescription() != null && film.getDescription().length() > 200) {
+            throw new ValidationException("Описание фильма не может быть длиннее 200 символов");
+        }
+
+
         if (film.getReleaseDate() != null && film.getReleaseDate().isBefore(LocalDate.of(1895, 12, 28))) {
             throw new ValidationException("Дата релиза фильма не может быть раньше 28 декабря 1895");
         }
+
+
         if (film.getDuration() <= 0) {
             throw new ValidationException("Продолжительность фильма должна быть положительной");
         }
     }
+
 
     private Film getFilmOrThrow(long filmId) {
         Film film = filmStorage.getFilm(filmId);
