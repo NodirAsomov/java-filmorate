@@ -2,7 +2,6 @@ package ru.yandex.practicum.filmorate.service.film;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.Film;
 import ru.yandex.practicum.filmorate.model.User;
@@ -10,8 +9,8 @@ import ru.yandex.practicum.filmorate.storage.film.FilmStorage;
 import ru.yandex.practicum.filmorate.storage.user.UserStorage;
 
 import java.time.LocalDate;
-import java.util.List;
 import java.util.Comparator;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -28,11 +27,13 @@ public class FilmService {
 
     public Film updateFilm(Film film) {
         validateFilm(film);
+
+        getFilmOrThrow(film.getId());
         return filmStorage.updateFilm(film);
     }
 
     public Film getFilm(long id) {
-        return filmStorage.getFilm(id);
+        return getFilmOrThrow(id);
     }
 
     public List<Film> getAllFilms() {
@@ -41,7 +42,7 @@ public class FilmService {
 
 
     public void addLike(long filmId, long userId) {
-        Film film = getFilm(filmId);
+        Film film = getFilmOrThrow(filmId);
         User user = getUserOrThrow(userId);
 
         if (!film.getLikes().add(user.getId())) {
@@ -50,7 +51,7 @@ public class FilmService {
     }
 
     public void removeLike(long filmId, long userId) {
-        Film film = getFilm(filmId);
+        Film film = getFilmOrThrow(filmId);
         User user = getUserOrThrow(userId);
 
         if (!film.getLikes().remove(user.getId())) {
@@ -59,7 +60,9 @@ public class FilmService {
     }
 
     public List<Film> getPopularFilms(int count) {
-        if (count <= 0) throw new ValidationException("Количество фильмов должно быть положительным");
+        if (count <= 0) {
+            throw new ValidationException("Количество фильмов должно быть положительным");
+        }
 
         return filmStorage.getAllFilms().stream()
                 .sorted(Comparator.comparingInt((Film f) -> f.getLikes().size()).reversed())
@@ -80,13 +83,17 @@ public class FilmService {
         }
     }
 
+    private Film getFilmOrThrow(long filmId) {
+
+        return filmStorage.getFilm(filmId);
+    }
+
     private User getUserOrThrow(long userId) {
-        User user = userStorage.getUser(userId);
-        if (user == null) {
-            throw new NotFoundException("Пользователь с id " + userId + " не найден");
-        }
-        return user;
+
+        return userStorage.getUser(userId);
     }
 }
+
+
 
 
