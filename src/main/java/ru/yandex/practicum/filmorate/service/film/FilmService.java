@@ -93,21 +93,23 @@ public class FilmService {
 
 
     private Film getFilmOrThrow(long filmId) {
-        Film film = filmStorage.getFilm(filmId);
-        if (film == null) {
-            throw new NotFoundException("Фильм с id " + filmId + " не найден");
-        }
-        return film;
+        return filmStorage.getFilm(filmId)
+                .orElseThrow(() ->
+                        new NotFoundException("Фильм с id " + filmId + " не найден")
+                );
     }
 
+
     private User getUserOrThrow(long userId) {
-        User user = userStorage.getUser(userId);
-        if (user == null) {
-            throw new NotFoundException("Пользователь с id " + userId + " не найден");
-        }
-        return user;
+        return userStorage.getUser(userId)
+                .orElseThrow(() ->
+                        new NotFoundException("Пользователь с id " + userId + " не найден")
+                );
     }
+
 }
+
+
 
 
 

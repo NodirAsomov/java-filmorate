@@ -1,10 +1,12 @@
 package ru.yandex.practicum.filmorate.service.user;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.User;
 import ru.yandex.practicum.filmorate.storage.user.UserStorage;
+
 import java.time.LocalDate;
 import java.util.List;
 
@@ -87,12 +89,12 @@ public class UserService {
 
 
     private User getUserOrThrow(long userId) {
-        User user = userStorage.getUser(userId);
-        if (user == null) {
-            throw new NotFoundException("Пользователь с id " + userId + " не найден");
-        }
-        return user;
+        return userStorage.getUser(userId)
+                .orElseThrow(() ->
+                        new NotFoundException("Пользователь с id " + userId + " не найден")
+                );
     }
+
 
     private void validateDifferentUsers(long firstId, long secondId) {
         if (firstId == secondId) {
