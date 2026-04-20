@@ -1,3 +1,4 @@
+
 package ru.yandex.practicum.filmorate.service.user;
 
 import lombok.RequiredArgsConstructor;
@@ -5,11 +6,11 @@ import org.springframework.stereotype.Service;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.User;
+import ru.yandex.practicum.filmorate.model.FriendshipStatus;
 import ru.yandex.practicum.filmorate.storage.user.UserStorage;
 
 import java.time.LocalDate;
 import java.util.List;
-
 
 @Service
 @RequiredArgsConstructor
@@ -17,13 +18,12 @@ public class UserService {
 
     private final UserStorage userStorage;
 
-
     public User createUser(User user) {
         validateUser(user);
         if (user.getName() == null || user.getName().isBlank()) {
             user.setName(user.getLogin());
         }
-        return userStorage.addUser(user);
+        return userStorage.create(user);
     }
 
     public User updateUser(User user) {
@@ -32,7 +32,7 @@ public class UserService {
         if (user.getName() == null || user.getName().isBlank()) {
             user.setName(user.getLogin());
         }
-        return userStorage.updateUser(user);
+        return userStorage.update(user);
     }
 
     public User getUser(long id) {
@@ -41,38 +41,54 @@ public class UserService {
 
     public void deleteUser(long id) {
         getUserOrThrow(id);
-        userStorage.deleteUser(id);
+        userStorage.delete(id);
     }
 
     public List<User> getAllUsers() {
-        return userStorage.getAllUsers();
+        return userStorage.findAll();
     }
-
 
     public void addFriend(long userId, long friendId) {
         validateDifferentUsers(userId, friendId);
         User user = getUserOrThrow(userId);
-        User friend = getUserOrThrow(friendId);
 
-        if (!user.getFriends().add(friendId)) {
-            throw new ValidationException("Пользователь уже в друзьях");
+        if (user.getFriends().containsKey(friendId)) {
+            throw new ValidationException("Заявка уже отправлена или пользователь уже друг");
         }
-        friend.getFriends().add(userId);
+
+
+        user.getFriends().put(friendId, FriendshipStatus.UNCONFIRMED);
+    }
+
+    public void confirmFriend(long userId, long friendId) {
+        validateDifferentUsers(userId, friendId);
+        User user = getUserOrThrow(userId);
+
+        if (!user.getFriends().containsKey(friendId) ||
+                user.getFriends().get(friendId) != FriendshipStatus.UNCONFIRMED) {
+            throw new ValidationException("Нет заявки на подтверждение от этого пользователя");
+        }
+
+
+        user.getFriends().put(friendId, FriendshipStatus.CONFIRMED);
     }
 
     public void removeFriend(long userId, long friendId) {
         validateDifferentUsers(userId, friendId);
         User user = getUserOrThrow(userId);
-        User friend = getUserOrThrow(friendId);
+
+        if (!user.getFriends().containsKey(friendId)) {
+            throw new ValidationException("Пользователь не найден в друзьях");
+        }
 
         user.getFriends().remove(friendId);
-        friend.getFriends().remove(userId);
     }
 
     public List<User> getFriends(long userId) {
         User user = getUserOrThrow(userId);
-        return user.getFriends().stream()
-                .map(this::getUserOrThrow)
+        return user.getFriends().entrySet().stream()
+                .filter(e -> e.getValue() == FriendshipStatus.CONFIRMED)
+                .map(e -> getUserOrThrow(e.getKey()))
                 .toList();
     }
 
@@ -81,20 +97,20 @@ public class UserService {
         User user = getUserOrThrow(userId);
         User other = getUserOrThrow(otherId);
 
-        return user.getFriends().stream()
-                .filter(other.getFriends()::contains)
+        return user.getFriends().entrySet().stream()
+                .filter(e -> e.getValue() == FriendshipStatus.CONFIRMED)
+                .map(e -> e.getKey())
+                .filter(other.getFriends().keySet()::contains)
                 .map(this::getUserOrThrow)
                 .toList();
     }
 
-
     private User getUserOrThrow(long userId) {
-        return userStorage.getUser(userId)
+        return userStorage.findById(userId)
                 .orElseThrow(() ->
                         new NotFoundException("Пользователь с id " + userId + " не найден")
                 );
     }
-
 
     private void validateDifferentUsers(long firstId, long secondId) {
         if (firstId == secondId) {
