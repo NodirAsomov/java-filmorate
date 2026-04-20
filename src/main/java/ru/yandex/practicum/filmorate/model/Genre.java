@@ -1,4 +1,3 @@
-
 package ru.yandex.practicum.filmorate.model;
 
 import lombok.AllArgsConstructor;
@@ -13,14 +12,14 @@ public class Genre {
     private String name;
 
     public static Genre fromId(int id) {
-        switch (id) {
-            case 1: return new Genre(1, "Комедия");
-            case 2: return new Genre(2, "Драма");
-            case 3: return new Genre(3, "Мультфильм");
-            case 4: return new Genre(4, "Триллер");
-            case 5: return new Genre(5, "Документальный");
-            case 6: return new Genre(6, "Боевик");
-            default: throw new IllegalArgumentException("Invalid genre id: " + id);
-        }
+        return switch (id) {
+            case 1 -> new Genre(1, "COMEDY");
+            case 2 -> new Genre(2, "DRAMA");
+            case 3 -> new Genre(3, "CARTOON");
+            case 4 -> new Genre(4, "THRILLER");
+            case 5 -> new Genre(5, "DOCUMENTARY");
+            case 6 -> new Genre(6, "ACTION");
+            default -> throw new IllegalArgumentException("Invalid genre id: " + id);
+        };
     }
 }
