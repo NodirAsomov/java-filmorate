@@ -6,7 +6,9 @@ import org.springframework.stereotype.Repository;
 import ru.yandex.practicum.filmorate.model.*;
 
 import java.sql.ResultSet;
-import java.util.*;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 
 @Repository
 @RequiredArgsConstructor
@@ -17,9 +19,9 @@ public class FilmDbStorage implements FilmStorage {
     @Override
     public Film create(Film film) {
         jdbc.update("""
-                            INSERT INTO films (name, description, release_date, duration, mpa_id)
-                            VALUES (?, ?, ?, ?, ?)
-                        """,
+                INSERT INTO films (name, description, release_date, duration, mpa_id)
+                VALUES (?, ?, ?, ?, ?)
+                """,
                 film.getName(),
                 film.getDescription(),
                 film.getReleaseDate(),
@@ -30,17 +32,22 @@ public class FilmDbStorage implements FilmStorage {
         Long id = jdbc.queryForObject("SELECT MAX(id) FROM films", Long.class);
         film.setId(id);
 
-        setGenres(id, film.getGenres().stream().map(Genre::getId).collect(java.util.stream.Collectors.toSet()));
+        setGenres(id,
+                film.getGenres().stream()
+                        .map(Genre::getId)
+                        .collect(java.util.stream.Collectors.toSet())
+        );
 
-        return film;
+        return findById(id).orElseThrow();
     }
 
     @Override
     public Film update(Film film) {
         jdbc.update("""
-                            UPDATE films SET name=?, description=?, release_date=?, duration=?, mpa_id=?
-                            WHERE id=?
-                        """,
+                UPDATE films
+                SET name=?, description=?, release_date=?, duration=?, mpa_id=?
+                WHERE id=?
+                """,
                 film.getName(),
                 film.getDescription(),
                 film.getReleaseDate(),
@@ -50,16 +57,22 @@ public class FilmDbStorage implements FilmStorage {
         );
 
         setGenres(film.getId(),
-                film.getGenres().stream().map(Genre::getId).collect(java.util.stream.Collectors.toSet())
+                film.getGenres().stream()
+                        .map(Genre::getId)
+                        .collect(java.util.stream.Collectors.toSet())
         );
 
-        return film;
+        return findById(film.getId()).orElseThrow();
     }
 
     @Override
     public Optional<Film> findById(long id) {
-        return jdbc.query("SELECT * FROM films WHERE id=?",
-                this::mapRow, id).stream().findFirst();
+        return jdbc.query("""
+                SELECT * FROM films WHERE id=?
+                """,
+                this::mapRow,
+                id
+        ).stream().findFirst();
     }
 
     @Override
@@ -74,28 +87,35 @@ public class FilmDbStorage implements FilmStorage {
         jdbc.update("DELETE FROM films WHERE id=?", id);
     }
 
-
     @Override
     public void addLike(long filmId, long userId) {
-        jdbc.update("INSERT INTO film_likes (film_id, user_id) VALUES (?, ?)", filmId, userId);
+        jdbc.update("""
+                INSERT INTO film_likes (film_id, user_id)
+                VALUES (?, ?)
+                """, filmId, userId);
     }
 
     @Override
     public void removeLike(long filmId, long userId) {
-        jdbc.update("DELETE FROM film_likes WHERE film_id=? AND user_id=?", filmId, userId);
+        jdbc.update("""
+                DELETE FROM film_likes
+                WHERE film_id=? AND user_id=?
+                """, filmId, userId);
     }
-
 
     @Override
     public List<Film> findPopular(int count) {
         return jdbc.query("""
-                    SELECT f.*
-                    FROM films f
-                    LEFT JOIN film_likes fl ON f.id = fl.film_id
-                    GROUP BY f.id
-                    ORDER BY COUNT(fl.user_id) DESC
-                    LIMIT ?
-                """, this::mapRow, count);
+                SELECT f.*
+                FROM films f
+                LEFT JOIN film_likes fl ON f.id = fl.film_id
+                GROUP BY f.id
+                ORDER BY COUNT(fl.user_id) DESC
+                LIMIT ?
+                """,
+                this::mapRow,
+                count
+        );
     }
 
 
@@ -105,32 +125,56 @@ public class FilmDbStorage implements FilmStorage {
 
         for (Integer id : genreIds) {
             jdbc.update("""
-                        INSERT INTO film_genres (film_id, genre_id)
-                        VALUES (?, ?)
-                    """, filmId, id);
+                INSERT INTO film_genres (film_id, genre_id)
+                VALUES (?, ?)
+                """, filmId, id);
         }
     }
 
     @Override
-    public Set<Genre> getGenres(long filmId) {
-        return new HashSet<>(jdbc.query("""
-                    SELECT g.id
-                    FROM genres g
-                    JOIN film_genres fg ON g.id = fg.genre_id
-                    WHERE fg.film_id=?
-                """, (rs, rowNum) -> Genre.fromId(rs.getInt("id")), filmId));
+    public List<Genre> getGenres(long filmId) {
+        return jdbc.query("""
+                SELECT g.id, g.name
+                FROM genres g
+                JOIN film_genres fg ON g.id = fg.genre_id
+                WHERE fg.film_id=?
+                ORDER BY g.id
+                """,
+                (rs, rowNum) -> new Genre(
+                        rs.getInt("id"),
+                        rs.getString("name")
+                ),
+                filmId
+        );
     }
-
 
     private Film mapRow(ResultSet rs, int rowNum) throws java.sql.SQLException {
         Film film = new Film();
+
         film.setId(rs.getLong("id"));
         film.setName(rs.getString("name"));
         film.setDescription(rs.getString("description"));
         film.setReleaseDate(rs.getDate("release_date").toLocalDate());
         film.setDuration(rs.getInt("duration"));
-        film.setMpa(MpaRating.fromId(rs.getInt("mpa_id")));
+
+        film.setMpa(new MpaRating(
+                rs.getInt("mpa_id"),
+                getMpaName(rs.getInt("mpa_id"))
+        ));
+
         film.setGenres(getGenres(film.getId()));
+
         return film;
+    }
+
+    private String getMpaName(int id) {
+        return switch (id) {
+            case 1 -> "G";
+            case 2 -> "PG";
+            case 3 -> "PG-13";
+            case 4 -> "R";
+            case 5 -> "NC-17";
+            default -> throw new IllegalArgumentException("Unknown MPA id: " + id);
+        };
     }
 }

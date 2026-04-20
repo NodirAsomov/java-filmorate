@@ -27,7 +27,7 @@ public interface FilmStorage {
 
     void setGenres(long filmId, Set<Integer> genreIds);
 
-    Set<Genre> getGenres(long filmId);
+    List<Genre> getGenres(long filmId);
 }
 
 
