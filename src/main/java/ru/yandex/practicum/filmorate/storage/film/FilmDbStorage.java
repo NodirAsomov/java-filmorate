@@ -19,7 +19,6 @@ public class FilmDbStorage implements FilmStorage {
 
     private final JdbcTemplate jdbc;
 
-
     @Override
     public Film create(Film film) {
 
@@ -48,7 +47,6 @@ public class FilmDbStorage implements FilmStorage {
         return findById(id).orElseThrow();
     }
 
-
     @Override
     public Film update(Film film) {
 
@@ -70,12 +68,13 @@ public class FilmDbStorage implements FilmStorage {
         return findById(film.getId()).orElseThrow();
     }
 
-
     @Override
     public Optional<Film> findById(long id) {
-
         return jdbc.query("""
-                        SELECT * FROM films WHERE id = ?
+                        SELECT f.*, m.name AS mpa_name
+                        FROM films f
+                        JOIN mpa m ON f.mpa_id = m.id
+                        WHERE f.id = ?
                         """,
                 this::mapRow,
                 id
@@ -84,9 +83,14 @@ public class FilmDbStorage implements FilmStorage {
 
     @Override
     public List<Film> findAll() {
-        return jdbc.query("SELECT * FROM films", this::mapRow);
+        return jdbc.query("""
+                        SELECT f.*, m.name AS mpa_name
+                        FROM films f
+                        JOIN mpa m ON f.mpa_id = m.id
+                        """,
+                this::mapRow
+        );
     }
-
 
     @Override
     public void delete(long id) {
@@ -94,7 +98,6 @@ public class FilmDbStorage implements FilmStorage {
         jdbc.update("DELETE FROM film_genres WHERE film_id = ?", id);
         jdbc.update("DELETE FROM films WHERE id = ?", id);
     }
-
 
     @Override
     public void addLike(long filmId, long userId) {
@@ -112,14 +115,14 @@ public class FilmDbStorage implements FilmStorage {
                 """, filmId, userId);
     }
 
-
     @Override
     public List<Film> findPopular(int count) {
         return jdbc.query("""
-                        SELECT f.*
+                        SELECT f.*, m.name AS mpa_name
                         FROM films f
+                        JOIN mpa m ON f.mpa_id = m.id
                         LEFT JOIN film_likes fl ON f.id = fl.film_id
-                        GROUP BY f.id
+                        GROUP BY f.id, m.name
                         ORDER BY COUNT(fl.user_id) DESC
                         LIMIT ?
                         """,
@@ -127,7 +130,6 @@ public class FilmDbStorage implements FilmStorage {
                 count
         );
     }
-
 
     @Override
     public void setGenres(long filmId, List<Integer> genreIds) {
@@ -165,7 +167,6 @@ public class FilmDbStorage implements FilmStorage {
         );
     }
 
-
     private Film mapRow(ResultSet rs, int rowNum) throws SQLException {
 
         Film film = new Film();
@@ -178,14 +179,13 @@ public class FilmDbStorage implements FilmStorage {
 
         film.setMpa(new MpaRating(
                 rs.getInt("mpa_id"),
-                null
+                rs.getString("mpa_name")
         ));
 
         film.setGenres(getGenres(film.getId()));
 
         return film;
     }
-
 
     private void updateGenres(long filmId, List<Genre> genres) {
         jdbc.update("DELETE FROM film_genres WHERE film_id = ?", filmId);
