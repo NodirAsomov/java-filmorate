@@ -2,10 +2,14 @@ package ru.yandex.practicum.filmorate.storage.film;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.support.GeneratedKeyHolder;
+import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
-import ru.yandex.practicum.filmorate.model.*;
+import ru.yandex.practicum.filmorate.model.Film;
+import ru.yandex.practicum.filmorate.model.Genre;
+import ru.yandex.practicum.filmorate.model.MpaRating;
 
-import java.sql.ResultSet;
+import java.sql.*;
 import java.util.List;
 import java.util.Optional;
 
@@ -19,23 +23,27 @@ public class FilmDbStorage implements FilmStorage {
     @Override
     public Film create(Film film) {
 
-        jdbc.update("""
-        INSERT INTO films (name, description, release_date, duration, mpa_id)
-        VALUES (?, ?, ?, ?, ?)
-    """,
-                film.getName(),
-                film.getDescription(),
-                film.getReleaseDate(),
-                film.getDuration(),
-                film.getMpa().getId()
-        );
+        KeyHolder keyHolder = new GeneratedKeyHolder();
 
-        Long id = jdbc.queryForObject("SELECT MAX(id) FROM films", Long.class);
+        jdbc.update(connection -> {
+            PreparedStatement ps = connection.prepareStatement(
+                    "INSERT INTO films (name, description, release_date, duration, mpa_id) VALUES (?, ?, ?, ?, ?)",
+                    Statement.RETURN_GENERATED_KEYS
+            );
+
+            ps.setString(1, film.getName());
+            ps.setString(2, film.getDescription());
+            ps.setDate(3, Date.valueOf(film.getReleaseDate()));
+            ps.setInt(4, film.getDuration());
+            ps.setInt(5, film.getMpa().getId());
+
+            return ps;
+        }, keyHolder);
+
+        long id = keyHolder.getKey().longValue();
         film.setId(id);
 
-        setGenres(id, toGenreIds(
-                film.getGenres() == null ? List.of() : film.getGenres()
-        ));
+        updateGenres(id, film.getGenres());
 
         return findById(id).orElseThrow();
     }
@@ -45,29 +53,29 @@ public class FilmDbStorage implements FilmStorage {
     public Film update(Film film) {
 
         jdbc.update("""
-        UPDATE films
-        SET name=?, description=?, release_date=?, duration=?, mpa_id=?
-        WHERE id=?
-    """,
+                        UPDATE films
+                        SET name = ?, description = ?, release_date = ?, duration = ?, mpa_id = ?
+                        WHERE id = ?
+                        """,
                 film.getName(),
                 film.getDescription(),
-                film.getReleaseDate(),
+                Date.valueOf(film.getReleaseDate()),
                 film.getDuration(),
                 film.getMpa().getId(),
                 film.getId()
         );
 
-        setGenres(film.getId(), toGenreIds(
-                film.getGenres() == null ? List.of() : film.getGenres()
-        ));
+        updateGenres(film.getId(), film.getGenres());
 
         return findById(film.getId()).orElseThrow();
     }
 
+
     @Override
     public Optional<Film> findById(long id) {
+
         return jdbc.query("""
-                        SELECT * FROM films WHERE id=?
+                        SELECT * FROM films WHERE id = ?
                         """,
                 this::mapRow,
                 id
@@ -79,12 +87,14 @@ public class FilmDbStorage implements FilmStorage {
         return jdbc.query("SELECT * FROM films", this::mapRow);
     }
 
+
     @Override
     public void delete(long id) {
-        jdbc.update("DELETE FROM film_likes WHERE film_id=?", id);
-        jdbc.update("DELETE FROM film_genres WHERE film_id=?", id);
-        jdbc.update("DELETE FROM films WHERE id=?", id);
+        jdbc.update("DELETE FROM film_likes WHERE film_id = ?", id);
+        jdbc.update("DELETE FROM film_genres WHERE film_id = ?", id);
+        jdbc.update("DELETE FROM films WHERE id = ?", id);
     }
+
 
     @Override
     public void addLike(long filmId, long userId) {
@@ -98,9 +108,10 @@ public class FilmDbStorage implements FilmStorage {
     public void removeLike(long filmId, long userId) {
         jdbc.update("""
                 DELETE FROM film_likes
-                WHERE film_id=? AND user_id=?
+                WHERE film_id = ? AND user_id = ?
                 """, filmId, userId);
     }
+
 
     @Override
     public List<Film> findPopular(int count) {
@@ -117,17 +128,24 @@ public class FilmDbStorage implements FilmStorage {
         );
     }
 
+
     @Override
     public void setGenres(long filmId, List<Integer> genreIds) {
+        jdbc.update("DELETE FROM film_genres WHERE film_id = ?", filmId);
 
-        jdbc.update("DELETE FROM film_genres WHERE film_id=?", filmId);
-
-        for (Integer id : genreIds) {
-            jdbc.update("""
-                    INSERT INTO film_genres (film_id, genre_id)
-                    VALUES (?, ?)
-                    """, filmId, id);
+        if (genreIds == null || genreIds.isEmpty()) {
+            return;
         }
+
+        jdbc.batchUpdate(
+                "INSERT INTO film_genres (film_id, genre_id) VALUES (?, ?)",
+                genreIds,
+                genreIds.size(),
+                (ps, genreId) -> {
+                    ps.setLong(1, filmId);
+                    ps.setInt(2, genreId);
+                }
+        );
     }
 
     @Override
@@ -136,7 +154,7 @@ public class FilmDbStorage implements FilmStorage {
                         SELECT g.id, g.name
                         FROM genres g
                         JOIN film_genres fg ON g.id = fg.genre_id
-                        WHERE fg.film_id=?
+                        WHERE fg.film_id = ?
                         ORDER BY g.id
                         """,
                 (rs, rowNum) -> new Genre(
@@ -147,15 +165,9 @@ public class FilmDbStorage implements FilmStorage {
         );
     }
 
-    private List<Integer> toGenreIds(List<Genre> genres) {
-        if (genres == null) return List.of();
 
-        return genres.stream()
-                .map(Genre::getId)
-                .toList();
-    }
+    private Film mapRow(ResultSet rs, int rowNum) throws SQLException {
 
-    private Film mapRow(ResultSet rs, int rowNum) throws java.sql.SQLException {
         Film film = new Film();
 
         film.setId(rs.getLong("id"));
@@ -164,10 +176,32 @@ public class FilmDbStorage implements FilmStorage {
         film.setReleaseDate(rs.getDate("release_date").toLocalDate());
         film.setDuration(rs.getInt("duration"));
 
-        film.setMpa(MpaRating.fromId(rs.getInt("mpa_id")));
+        film.setMpa(new MpaRating(
+                rs.getInt("mpa_id"),
+                null
+        ));
 
         film.setGenres(getGenres(film.getId()));
 
         return film;
+    }
+
+
+    private void updateGenres(long filmId, List<Genre> genres) {
+        jdbc.update("DELETE FROM film_genres WHERE film_id = ?", filmId);
+
+        if (genres == null || genres.isEmpty()) {
+            return;
+        }
+
+        jdbc.batchUpdate(
+                "INSERT INTO film_genres (film_id, genre_id) VALUES (?, ?)",
+                genres,
+                genres.size(),
+                (ps, genre) -> {
+                    ps.setLong(1, filmId);
+                    ps.setInt(2, genre.getId());
+                }
+        );
     }
 }
