@@ -1,29 +1,25 @@
 package ru.yandex.practicum.filmorate.service.genre;
 
-
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import ru.yandex.practicum.filmorate.model.Genre;
+import ru.yandex.practicum.filmorate.storage.genre.GenreStorage;
+import ru.yandex.practicum.filmorate.exception.NotFoundException;
 
 import java.util.List;
 
 @Service
+@RequiredArgsConstructor
 public class GenreService {
 
+    private final GenreStorage genreStorage;
+
     public List<Genre> getAll() {
-        return List.of(
-                new Genre(1, "Комедия"),
-                new Genre(2, "Драма"),
-                new Genre(3, "Мультфильм"),
-                new Genre(4, "Триллер"),
-                new Genre(5, "Документальный"),
-                new Genre(6, "Боевик")
-        );
+        return genreStorage.findAll();
     }
 
     public Genre getById(int id) {
-        return getAll().stream()
-                .filter(g -> g.getId() == id)
-                .findFirst()
-                .orElseThrow();
+        return genreStorage.findById(id)
+                .orElseThrow(() -> new NotFoundException("Genre not found: " + id));
     }
 }

@@ -15,15 +15,14 @@ public class FilmDbStorage implements FilmStorage {
 
     private final JdbcTemplate jdbc;
 
+
     @Override
     public Film create(Film film) {
 
-        Long id = jdbc.queryForObject("""
-                        INSERT INTO films (name, description, release_date, duration, mpa_id)
-                        VALUES (?, ?, ?, ?, ?)
-                        RETURNING id
-                        """,
-                Long.class,
+        jdbc.update("""
+        INSERT INTO films (name, description, release_date, duration, mpa_id)
+        VALUES (?, ?, ?, ?, ?)
+    """,
                 film.getName(),
                 film.getDescription(),
                 film.getReleaseDate(),
@@ -31,21 +30,25 @@ public class FilmDbStorage implements FilmStorage {
                 film.getMpa().getId()
         );
 
+        Long id = jdbc.queryForObject("SELECT MAX(id) FROM films", Long.class);
         film.setId(id);
 
-        setGenres(id, toGenreIds(film.getGenres()));
+        setGenres(id, toGenreIds(
+                film.getGenres() == null ? List.of() : film.getGenres()
+        ));
 
         return findById(id).orElseThrow();
     }
+
 
     @Override
     public Film update(Film film) {
 
         jdbc.update("""
-                        UPDATE films
-                        SET name=?, description=?, release_date=?, duration=?, mpa_id=?
-                        WHERE id=?
-                        """,
+        UPDATE films
+        SET name=?, description=?, release_date=?, duration=?, mpa_id=?
+        WHERE id=?
+    """,
                 film.getName(),
                 film.getDescription(),
                 film.getReleaseDate(),
@@ -54,7 +57,9 @@ public class FilmDbStorage implements FilmStorage {
                 film.getId()
         );
 
-        setGenres(film.getId(), toGenreIds(film.getGenres()));
+        setGenres(film.getId(), toGenreIds(
+                film.getGenres() == null ? List.of() : film.getGenres()
+        ));
 
         return findById(film.getId()).orElseThrow();
     }
