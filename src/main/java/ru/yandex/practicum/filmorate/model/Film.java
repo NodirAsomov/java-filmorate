@@ -5,14 +5,14 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
-
-
+import java.util.HashSet;
 import java.util.List;
-
+import java.util.Set;
 
 @Data
 @NoArgsConstructor
 public class Film {
+
     private long id;
     private String name;
     private String description;
@@ -20,8 +20,9 @@ public class Film {
     private int duration;
 
     private List<Genre> genres = new ArrayList<>();
-    private List<Long> likes = new ArrayList<>();
 
+
+    private Set<Long> likes = new HashSet<>();
 
     private MpaRating mpa;
 }

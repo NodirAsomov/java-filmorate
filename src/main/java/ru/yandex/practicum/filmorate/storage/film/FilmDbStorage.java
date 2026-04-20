@@ -8,7 +8,6 @@ import ru.yandex.practicum.filmorate.model.*;
 import java.sql.ResultSet;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 
 @Repository
 @RequiredArgsConstructor
@@ -18,10 +17,13 @@ public class FilmDbStorage implements FilmStorage {
 
     @Override
     public Film create(Film film) {
-        jdbc.update("""
+
+        Long id = jdbc.queryForObject("""
                         INSERT INTO films (name, description, release_date, duration, mpa_id)
                         VALUES (?, ?, ?, ?, ?)
+                        RETURNING id
                         """,
+                Long.class,
                 film.getName(),
                 film.getDescription(),
                 film.getReleaseDate(),
@@ -29,20 +31,16 @@ public class FilmDbStorage implements FilmStorage {
                 film.getMpa().getId()
         );
 
-        Long id = jdbc.queryForObject("SELECT MAX(id) FROM films", Long.class);
         film.setId(id);
 
-        setGenres(id,
-                film.getGenres().stream()
-                        .map(Genre::getId)
-                        .collect(java.util.stream.Collectors.toSet())
-        );
+        setGenres(id, toGenreIds(film.getGenres()));
 
         return findById(id).orElseThrow();
     }
 
     @Override
     public Film update(Film film) {
+
         jdbc.update("""
                         UPDATE films
                         SET name=?, description=?, release_date=?, duration=?, mpa_id=?
@@ -56,11 +54,7 @@ public class FilmDbStorage implements FilmStorage {
                 film.getId()
         );
 
-        setGenres(film.getId(),
-                film.getGenres().stream()
-                        .map(Genre::getId)
-                        .collect(java.util.stream.Collectors.toSet())
-        );
+        setGenres(film.getId(), toGenreIds(film.getGenres()));
 
         return findById(film.getId()).orElseThrow();
     }
@@ -118,9 +112,9 @@ public class FilmDbStorage implements FilmStorage {
         );
     }
 
-
     @Override
-    public void setGenres(long filmId, Set<Integer> genreIds) {
+    public void setGenres(long filmId, List<Integer> genreIds) {
+
         jdbc.update("DELETE FROM film_genres WHERE film_id=?", filmId);
 
         for (Integer id : genreIds) {
@@ -148,6 +142,14 @@ public class FilmDbStorage implements FilmStorage {
         );
     }
 
+    private List<Integer> toGenreIds(List<Genre> genres) {
+        if (genres == null) return List.of();
+
+        return genres.stream()
+                .map(Genre::getId)
+                .toList();
+    }
+
     private Film mapRow(ResultSet rs, int rowNum) throws java.sql.SQLException {
         Film film = new Film();
 
@@ -157,24 +159,10 @@ public class FilmDbStorage implements FilmStorage {
         film.setReleaseDate(rs.getDate("release_date").toLocalDate());
         film.setDuration(rs.getInt("duration"));
 
-        film.setMpa(new MpaRating(
-                rs.getInt("mpa_id"),
-                getMpaName(rs.getInt("mpa_id"))
-        ));
+        film.setMpa(MpaRating.fromId(rs.getInt("mpa_id")));
 
         film.setGenres(getGenres(film.getId()));
 
         return film;
-    }
-
-    private String getMpaName(int id) {
-        return switch (id) {
-            case 1 -> "G";
-            case 2 -> "PG";
-            case 3 -> "PG-13";
-            case 4 -> "R";
-            case 5 -> "NC-17";
-            default -> throw new IllegalArgumentException("Unknown MPA id: " + id);
-        };
     }
 }
