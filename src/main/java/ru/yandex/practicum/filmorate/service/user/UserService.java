@@ -14,10 +14,11 @@ import java.util.List;
 @RequiredArgsConstructor
 public class UserService {
 
+
     private final UserStorage userStorage;
 
     public User createUser(User user) {
-        validateUser(user);
+        validate(user);
 
         if (user.getName() == null || user.getName().isBlank()) {
             user.setName(user.getLogin());
@@ -27,7 +28,7 @@ public class UserService {
     }
 
     public User updateUser(User user) {
-        validateUser(user);
+        validate(user);
         getUserOrThrow(user.getId());
 
         if (user.getName() == null || user.getName().isBlank()) {
@@ -45,33 +46,14 @@ public class UserService {
         return userStorage.findAll();
     }
 
-    public void deleteUser(long id) {
-        getUserOrThrow(id);
-        userStorage.delete(id);
-    }
-
 
     public void addFriend(long userId, long friendId) {
-        validateDifferent(userId, friendId);
-        getUserOrThrow(userId);
-        getUserOrThrow(friendId);
-
-        userStorage.addFriendRequest(userId, friendId);
-    }
-
-    public void confirmFriend(long userId, long friendId) {
-        validateDifferent(userId, friendId);
-        getUserOrThrow(userId);
-        getUserOrThrow(friendId);
-
-        userStorage.confirmFriend(userId, friendId);
+        checkUsers(userId, friendId);
+        userStorage.addFriend(userId, friendId);
     }
 
     public void removeFriend(long userId, long friendId) {
-        validateDifferent(userId, friendId);
-        getUserOrThrow(userId);
-        getUserOrThrow(friendId);
-
+        checkUsers(userId, friendId);
         userStorage.removeFriend(userId, friendId);
     }
 
@@ -81,26 +63,12 @@ public class UserService {
     }
 
     public List<User> getCommonFriends(long userId, long otherId) {
-        validateDifferent(userId, otherId);
-        getUserOrThrow(userId);
-        getUserOrThrow(otherId);
-
+        checkUsers(userId, otherId);
         return userStorage.getCommonFriends(userId, otherId);
     }
 
 
-    private User getUserOrThrow(long id) {
-        return userStorage.findById(id)
-                .orElseThrow(() -> new NotFoundException("Пользователь с id " + id + " не найден"));
-    }
-
-    private void validateDifferent(long a, long b) {
-        if (a == b) {
-            throw new ValidationException("Нельзя выполнять операцию с самим собой");
-        }
-    }
-
-    private void validateUser(User user) {
+    private void validate(User user) {
         if (user.getEmail() == null || !user.getEmail().contains("@")) {
             throw new ValidationException("Email должен содержать @");
         }
@@ -112,5 +80,18 @@ public class UserService {
         if (user.getBirthday() != null && user.getBirthday().isAfter(LocalDate.now())) {
             throw new ValidationException("Дата рождения не может быть в будущем");
         }
+    }
+
+    private User getUserOrThrow(long id) {
+        return userStorage.findById(id)
+                .orElseThrow(() -> new NotFoundException("Пользователь с id " + id + " не найден"));
+    }
+
+    private void checkUsers(long a, long b) {
+        if (a == b) {
+            throw new ValidationException("Нельзя выполнять операцию с самим собой");
+        }
+        getUserOrThrow(a);
+        getUserOrThrow(b);
     }
 }

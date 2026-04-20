@@ -7,7 +7,6 @@ import java.util.Optional;
 
 
 public interface UserStorage {
-
     User create(User user);
 
     User update(User user);
@@ -18,10 +17,7 @@ public interface UserStorage {
 
     void delete(long id);
 
-    // friends
-    void addFriendRequest(long userId, long friendId);
-
-    void confirmFriend(long userId, long friendId);
+    void addFriend(long userId, long friendId);
 
     void removeFriend(long userId, long friendId);
 
