@@ -19,9 +19,9 @@ public class FilmDbStorage implements FilmStorage {
     @Override
     public Film create(Film film) {
         jdbc.update("""
-                INSERT INTO films (name, description, release_date, duration, mpa_id)
-                VALUES (?, ?, ?, ?, ?)
-                """,
+                        INSERT INTO films (name, description, release_date, duration, mpa_id)
+                        VALUES (?, ?, ?, ?, ?)
+                        """,
                 film.getName(),
                 film.getDescription(),
                 film.getReleaseDate(),
@@ -44,10 +44,10 @@ public class FilmDbStorage implements FilmStorage {
     @Override
     public Film update(Film film) {
         jdbc.update("""
-                UPDATE films
-                SET name=?, description=?, release_date=?, duration=?, mpa_id=?
-                WHERE id=?
-                """,
+                        UPDATE films
+                        SET name=?, description=?, release_date=?, duration=?, mpa_id=?
+                        WHERE id=?
+                        """,
                 film.getName(),
                 film.getDescription(),
                 film.getReleaseDate(),
@@ -68,8 +68,8 @@ public class FilmDbStorage implements FilmStorage {
     @Override
     public Optional<Film> findById(long id) {
         return jdbc.query("""
-                SELECT * FROM films WHERE id=?
-                """,
+                        SELECT * FROM films WHERE id=?
+                        """,
                 this::mapRow,
                 id
         ).stream().findFirst();
@@ -106,13 +106,13 @@ public class FilmDbStorage implements FilmStorage {
     @Override
     public List<Film> findPopular(int count) {
         return jdbc.query("""
-                SELECT f.*
-                FROM films f
-                LEFT JOIN film_likes fl ON f.id = fl.film_id
-                GROUP BY f.id
-                ORDER BY COUNT(fl.user_id) DESC
-                LIMIT ?
-                """,
+                        SELECT f.*
+                        FROM films f
+                        LEFT JOIN film_likes fl ON f.id = fl.film_id
+                        GROUP BY f.id
+                        ORDER BY COUNT(fl.user_id) DESC
+                        LIMIT ?
+                        """,
                 this::mapRow,
                 count
         );
@@ -125,21 +125,21 @@ public class FilmDbStorage implements FilmStorage {
 
         for (Integer id : genreIds) {
             jdbc.update("""
-                INSERT INTO film_genres (film_id, genre_id)
-                VALUES (?, ?)
-                """, filmId, id);
+                    INSERT INTO film_genres (film_id, genre_id)
+                    VALUES (?, ?)
+                    """, filmId, id);
         }
     }
 
     @Override
     public List<Genre> getGenres(long filmId) {
         return jdbc.query("""
-                SELECT g.id, g.name
-                FROM genres g
-                JOIN film_genres fg ON g.id = fg.genre_id
-                WHERE fg.film_id=?
-                ORDER BY g.id
-                """,
+                        SELECT g.id, g.name
+                        FROM genres g
+                        JOIN film_genres fg ON g.id = fg.genre_id
+                        WHERE fg.film_id=?
+                        ORDER BY g.id
+                        """,
                 (rs, rowNum) -> new Genre(
                         rs.getInt("id"),
                         rs.getString("name")
