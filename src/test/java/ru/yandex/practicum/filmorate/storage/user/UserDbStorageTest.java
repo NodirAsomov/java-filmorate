@@ -8,10 +8,11 @@ import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabas
 import org.springframework.boot.test.autoconfigure.jdbc.JdbcTest;
 import org.springframework.context.annotation.Import;
 import ru.yandex.practicum.filmorate.model.User;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.LocalDate;
-import java.util.Optional;
+
 @JdbcTest
 @AutoConfigureTestDatabase
 @Import(UserDbStorage.class)
@@ -19,6 +20,7 @@ import java.util.Optional;
 class UserDbStorageTest {
 
     private final UserDbStorage userStorage;
+
     @Test
     void shouldCreateUser() {
         User user = new User();
@@ -36,4 +38,5 @@ class UserDbStorageTest {
                     assertThat(u.getLogin()).isEqualTo("login");
                     assertThat(u.getName()).isEqualTo("name");
                 });
-    }}
+    }
+}
