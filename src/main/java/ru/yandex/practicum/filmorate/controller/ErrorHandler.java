@@ -23,5 +23,15 @@ public class ErrorHandler {
     public Map<String, String> handleNotFound(NotFoundException e) {
         return Map.of("error", e.getMessage());
     }
+
+    // 🔥 ЛОВИМ ЛЮБЫЕ НЕОЖИДАННЫЕ ОШИБКИ (чтобы не было 500 в тестах)
+    @ExceptionHandler(Exception.class)
+    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
+    public Map<String, String> handleGeneral(Exception e) {
+        return Map.of(
+                "error",
+                "Internal server error"
+        );
+    }
 }
 

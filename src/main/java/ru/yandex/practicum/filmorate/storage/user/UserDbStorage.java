@@ -3,12 +3,9 @@ package ru.yandex.practicum.filmorate.storage.user;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
-
 import ru.yandex.practicum.filmorate.model.User;
 
 import java.sql.ResultSet;
-
-
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Optional;
@@ -22,9 +19,9 @@ public class UserDbStorage implements UserStorage {
     @Override
     public User create(User user) {
         String sql = """
-                    INSERT INTO users (email, login, name, birthday)
-                    VALUES (?, ?, ?, ?)
-                """;
+            INSERT INTO users (email, login, name, birthday)
+            VALUES (?, ?, ?, ?)
+        """;
 
         jdbc.update(sql,
                 user.getEmail(),
@@ -42,8 +39,10 @@ public class UserDbStorage implements UserStorage {
     @Override
     public User update(User user) {
         jdbc.update("""
-                            UPDATE users SET email=?, login=?, name=?, birthday=? WHERE id=?
-                        """,
+            UPDATE users
+            SET email=?, login=?, name=?, birthday=?
+            WHERE id=?
+        """,
                 user.getEmail(),
                 user.getLogin(),
                 user.getName(),
@@ -76,40 +75,50 @@ public class UserDbStorage implements UserStorage {
     }
 
 
+
     @Override
     public void addFriend(long userId, long friendId) {
+        // защита от дублей можно добавить позже
         jdbc.update("""
-                    INSERT INTO friendships (user_id, friend_id, status)
-                    VALUES (?, ?, 'UNCONFIRMED')
-                """, userId, friendId);
+            INSERT INTO friendships (user_id, friend_id)
+            VALUES (?, ?)
+        """, userId, friendId);
+
+        jdbc.update("""
+            INSERT INTO friendships (user_id, friend_id)
+            VALUES (?, ?)
+        """, friendId, userId);
     }
 
     @Override
     public void removeFriend(long userId, long friendId) {
         jdbc.update("""
-                    DELETE FROM friendships WHERE user_id=? AND friend_id=?
-                """, userId, friendId);
+            DELETE FROM friendships
+            WHERE (user_id=? AND friend_id=?)
+               OR (user_id=? AND friend_id=?)
+        """, userId, friendId, friendId, userId);
     }
 
     @Override
     public List<User> getFriends(long userId) {
         return jdbc.query("""
-                    SELECT u.*
-                    FROM users u
-                    JOIN friendships f ON u.id = f.friend_id
-                    WHERE f.user_id = ? AND f.status = 'CONFIRMED'
-                """, this::mapRow, userId);
+            SELECT u.*
+            FROM users u
+            JOIN friendships f ON u.id = f.friend_id
+            WHERE f.user_id = ?
+        """, this::mapRow, userId);
     }
 
     @Override
     public List<User> getCommonFriends(long userId, long otherId) {
         return jdbc.query("""
-                    SELECT u.*
-                    FROM users u
-                    JOIN friendships f1 ON u.id = f1.friend_id
-                    JOIN friendships f2 ON u.id = f2.friend_id
-                    WHERE f1.user_id = ? AND f2.user_id = ?
-                """, this::mapRow, userId, otherId);
+            SELECT u.*
+            FROM users u
+            JOIN friendships f1 ON u.id = f1.friend_id
+            JOIN friendships f2 ON u.id = f2.friend_id
+            WHERE f1.user_id = ?
+              AND f2.user_id = ?
+        """, this::mapRow, userId, otherId);
     }
 
     private User mapRow(ResultSet rs, int rowNum) throws SQLException {
