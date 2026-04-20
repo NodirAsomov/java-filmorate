@@ -1,29 +1,26 @@
+
 package ru.yandex.practicum.filmorate.model;
 
-public enum Genre {
-    COMEDY(1),
-    DRAMA(2),
-    CARTOON(3),
-    THRILLER(4),
-    DOCUMENTARY(5),
-    ACTION(6);
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
-    private final int id;
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class Genre {
+    private int id;
+    private String name;
 
-    Genre(int id) {
-        this.id = id;
-    }
-
-    public int getId() {
-        return id;
-    }
-
-    // Метод для поиска по id
     public static Genre fromId(int id) {
-        for (Genre genre : Genre.values()) {
-            if (genre.getId() == id) return genre;
+        switch (id) {
+            case 1: return new Genre(1, "Комедия");
+            case 2: return new Genre(2, "Драма");
+            case 3: return new Genre(3, "Мультфильм");
+            case 4: return new Genre(4, "Триллер");
+            case 5: return new Genre(5, "Документальный");
+            case 6: return new Genre(6, "Боевик");
+            default: throw new IllegalArgumentException("Invalid genre id: " + id);
         }
-        throw new IllegalArgumentException("Invalid genre id: " + id);
     }
 }
-
