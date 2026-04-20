@@ -24,14 +24,10 @@ public class ErrorHandler {
         return Map.of("error", e.getMessage());
     }
 
-    // 🔥 ЛОВИМ ЛЮБЫЕ НЕОЖИДАННЫЕ ОШИБКИ (чтобы не было 500 в тестах)
+
     @ExceptionHandler(Exception.class)
-    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
-    public Map<String, String> handleGeneral(Exception e) {
-        return Map.of(
-                "error",
-                "Internal server error"
-        );
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public Map<String, String> handleAny(Exception e) {
+        return Map.of("error", e.getMessage());
     }
 }
-
