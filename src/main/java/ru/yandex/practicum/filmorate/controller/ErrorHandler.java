@@ -26,8 +26,8 @@ public class ErrorHandler {
 
 
     @ExceptionHandler(Exception.class)
-    @ResponseStatus(HttpStatus.NOT_FOUND)
+    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public Map<String, String> handleAny(Exception e) {
-        return Map.of("error", e.getMessage());
+        return Map.of("error", "Произошла непредвиденная ошибка");
     }
 }

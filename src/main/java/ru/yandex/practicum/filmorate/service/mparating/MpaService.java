@@ -1,28 +1,28 @@
 package ru.yandex.practicum.filmorate.service.mparating;
 
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.model.MpaRating;
+import ru.yandex.practicum.filmorate.storage.mparating.MpaStorage;
 
 import java.util.List;
 
 @Service
+@RequiredArgsConstructor
 public class MpaService {
 
+    private final MpaStorage mpaStorage;
+
     public List<MpaRating> getAll() {
-        return List.of(
-                new MpaRating(1, "G"),
-                new MpaRating(2, "PG"),
-                new MpaRating(3, "PG-13"),
-                new MpaRating(4, "R"),
-                new MpaRating(5, "NC-17")
-        );
+        return mpaStorage.findAll();
     }
 
     public MpaRating getById(int id) {
-        return getAll().stream()
-                .filter(m -> m.getId() == id)
-                .findFirst()
-                .orElseThrow();
+        return mpaStorage.findById(id)
+                .orElseThrow(() ->
+                        new NotFoundException("MPA с id " + id + " не найден"));
     }
 }
+
