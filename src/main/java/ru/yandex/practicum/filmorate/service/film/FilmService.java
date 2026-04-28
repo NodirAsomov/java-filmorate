@@ -26,25 +26,20 @@ public class FilmService {
 
     public Film createFilm(Film film) {
         validateFilm(film);
-        enrichFilmForSave(film);
+        enrichForSave(film);
         return filmStorage.create(film);
     }
 
     public Film updateFilm(Film film) {
         getFilmOrThrow(film.getId());
         validateFilm(film);
-        enrichFilmForSave(film);
+        enrichForSave(film);
         return filmStorage.update(film);
     }
 
     public Film getFilm(long id) {
         Film film = getFilmOrThrow(id);
-
-        Map<Long, List<Genre>> map =
-                filmStorage.getGenresByFilmIds(List.of(id));
-
-        film.setGenres(map.getOrDefault(id, List.of()));
-
+        film.setGenres(filmStorage.getGenres(id));
         return film;
     }
 
@@ -76,6 +71,7 @@ public class FilmService {
         filmStorage.removeLike(filmId, userId);
     }
 
+
     private void validateFilm(Film film) {
         if (film.getName() == null || film.getName().isBlank()) {
             throw new ValidationException("Название не может быть пустым");
@@ -99,11 +95,13 @@ public class FilmService {
         }
     }
 
-    private void enrichFilmForSave(Film film) {
+
+    private void enrichForSave(Film film) {
         film.setMpa(mpaService.getById(film.getMpa().getId()));
 
         if (film.getGenres() == null || film.getGenres().isEmpty()) {
-            throw new ValidationException("У фильма должен быть хотя бы один жанр");
+            film.setGenres(List.of());
+            return;
         }
 
         List<Long> ids = film.getGenres().stream()
@@ -120,24 +118,22 @@ public class FilmService {
         film.setGenres(genresFromDb);
     }
 
+
     private void enrichFilms(List<Film> films) {
-        if (films.isEmpty()) {
-            return;
-        }
+        if (films.isEmpty()) return;
 
         List<Long> filmIds = films.stream()
                 .map(Film::getId)
                 .toList();
 
-        Map<Long, List<Genre>> genresMap =
+        Map<Long, List<Genre>> map =
                 filmStorage.getGenresByFilmIds(filmIds);
 
         for (Film film : films) {
-            film.setGenres(
-                    genresMap.getOrDefault(film.getId(), List.of())
-            );
+            film.setGenres(map.getOrDefault(film.getId(), List.of()));
         }
     }
+
 
     private Film getFilmOrThrow(long id) {
         return filmStorage.findById(id)

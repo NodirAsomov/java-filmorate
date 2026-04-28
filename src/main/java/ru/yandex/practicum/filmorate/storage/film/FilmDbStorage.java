@@ -163,7 +163,6 @@ public class FilmDbStorage implements FilmStorage {
         );
     }
 
-
     @Override
     public Map<Long, List<Genre>> getGenresByFilmIds(List<Long> filmIds) {
         if (filmIds == null || filmIds.isEmpty()) {
@@ -199,7 +198,6 @@ public class FilmDbStorage implements FilmStorage {
         }, filmIds.toArray());
     }
 
-
     private Film mapRow(ResultSet rs, int rowNum) throws SQLException {
         Film film = new Film();
 
@@ -214,9 +212,9 @@ public class FilmDbStorage implements FilmStorage {
                 rs.getString("mpa_name")
         ));
 
+
         return film;
     }
-
 
     private void updateGenres(long filmId, List<Genre> genres) {
         jdbc.update("DELETE FROM film_genres WHERE film_id = ?", filmId);
