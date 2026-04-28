@@ -5,6 +5,7 @@ import org.springframework.stereotype.Service;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.Film;
+import ru.yandex.practicum.filmorate.model.Genre;
 import ru.yandex.practicum.filmorate.service.genre.GenreService;
 import ru.yandex.practicum.filmorate.service.mparating.MpaService;
 import ru.yandex.practicum.filmorate.storage.film.FilmStorage;
@@ -12,6 +13,7 @@ import ru.yandex.practicum.filmorate.storage.user.UserStorage;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -22,13 +24,11 @@ public class FilmService {
     private final MpaService mpaService;
     private final GenreService genreService;
 
-
     public Film createFilm(Film film) {
         validateFilm(film);
         enrichFilmForSave(film);
         return filmStorage.create(film);
     }
-
 
     public Film updateFilm(Film film) {
         getFilmOrThrow(film.getId());
@@ -39,7 +39,6 @@ public class FilmService {
         return filmStorage.update(film);
     }
 
-
     public Film getFilm(long id) {
         Film film = getFilmOrThrow(id);
         enrichFilm(film);
@@ -47,10 +46,9 @@ public class FilmService {
     }
 
     public List<Film> getAllFilms() {
-        return filmStorage.findAll()
-                .stream()
-                .peek(this::enrichFilm)
-                .toList();
+        List<Film> films = filmStorage.findAll();
+        enrichFilms(films);
+        return films;
     }
 
     public List<Film> getPopularFilms(int count) {
@@ -58,12 +56,10 @@ public class FilmService {
             throw new ValidationException("count должен быть > 0");
         }
 
-        return filmStorage.findPopular(count)
-                .stream()
-                .peek(this::enrichFilm)
-                .toList();
+        List<Film> films = filmStorage.findPopular(count);
+        enrichFilms(films);
+        return films;
     }
-
 
     public void addLike(long filmId, long userId) {
         getFilmOrThrow(filmId);
@@ -76,7 +72,6 @@ public class FilmService {
         getUserOrThrow(userId);
         filmStorage.removeLike(filmId, userId);
     }
-
 
     private void validateFilm(Film film) {
         if (film.getName() == null || film.getName().isBlank()) {
@@ -101,27 +96,47 @@ public class FilmService {
         }
     }
 
-
     private void enrichFilmForSave(Film film) {
         film.setMpa(mpaService.getById(film.getMpa().getId()));
 
-        if (film.getGenres() == null) {
-            film.setGenres(List.of());
-            return;
+
+        if (film.getGenres() == null || film.getGenres().isEmpty()) {
+            throw new ValidationException("У фильма должен быть хотя бы один жанр");
         }
 
-        film.setGenres(
-                film.getGenres().stream()
-                        .map(g -> genreService.getById(g.getId()))
-                        .distinct()
-                        .toList()
-        );
+        List<Long> ids = film.getGenres().stream()
+                .map(Genre::getId)
+                .distinct()
+                .toList();
+
+        List<Genre> genresFromDb = genreService.getByIds(ids);
+
+        if (genresFromDb.size() != ids.size()) {
+            throw new ValidationException("Один из жанров не существует");
+        }
+
+        film.setGenres(genresFromDb);
     }
 
     private void enrichFilm(Film film) {
         film.setGenres(filmStorage.getGenres(film.getId()));
     }
 
+    private void enrichFilms(List<Film> films) {
+        if (films.isEmpty()) {
+            return;
+        }
+
+        List<Long> filmIds = films.stream()
+                .map(Film::getId)
+                .toList();
+
+        Map<Long, List<Genre>> genresMap = filmStorage.getGenresByFilmIds(filmIds);
+
+        for (Film film : films) {
+            film.setGenres(genresMap.getOrDefault(film.getId(), List.of()));
+        }
+    }
 
     private Film getFilmOrThrow(long id) {
         return filmStorage.findById(id)

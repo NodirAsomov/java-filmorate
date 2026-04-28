@@ -10,8 +10,8 @@ import ru.yandex.practicum.filmorate.model.Genre;
 import ru.yandex.practicum.filmorate.model.MpaRating;
 
 import java.sql.*;
-import java.util.List;
-import java.util.Optional;
+import java.sql.Date;
+import java.util.*;
 
 @Repository
 @RequiredArgsConstructor
@@ -21,7 +21,6 @@ public class FilmDbStorage implements FilmStorage {
 
     @Override
     public Film create(Film film) {
-
         KeyHolder keyHolder = new GeneratedKeyHolder();
 
         jdbc.update(connection -> {
@@ -49,7 +48,6 @@ public class FilmDbStorage implements FilmStorage {
 
     @Override
     public Film update(Film film) {
-
         jdbc.update("""
                         UPDATE films
                         SET name = ?, description = ?, release_date = ?, duration = ?, mpa_id = ?
@@ -97,7 +95,6 @@ public class FilmDbStorage implements FilmStorage {
         jdbc.update("DELETE FROM films WHERE id = ?", id);
     }
 
-
     @Override
     public void addLike(long filmId, long userId) {
         jdbc.update("""
@@ -131,7 +128,7 @@ public class FilmDbStorage implements FilmStorage {
     }
 
     @Override
-    public void setGenres(long filmId, List<Integer> genreIds) {
+    public void setGenres(long filmId, List<Long> genreIds) {
         jdbc.update("DELETE FROM film_genres WHERE film_id = ?", filmId);
 
         if (genreIds == null || genreIds.isEmpty()) {
@@ -144,7 +141,7 @@ public class FilmDbStorage implements FilmStorage {
                 genreIds.size(),
                 (ps, genreId) -> {
                     ps.setLong(1, filmId);
-                    ps.setInt(2, genreId);
+                    ps.setLong(2, genreId);
                 }
         );
     }
@@ -159,15 +156,50 @@ public class FilmDbStorage implements FilmStorage {
                         ORDER BY g.id
                         """,
                 (rs, rowNum) -> new Genre(
-                        rs.getInt("id"),
+                        rs.getLong("id"),
                         rs.getString("name")
                 ),
                 filmId
         );
     }
 
-    private Film mapRow(ResultSet rs, int rowNum) throws SQLException {
 
+    @Override
+    public Map<Long, List<Genre>> getGenresByFilmIds(List<Long> filmIds) {
+        if (filmIds == null || filmIds.isEmpty()) {
+            return Map.of();
+        }
+
+        String inSql = String.join(",", Collections.nCopies(filmIds.size(), "?"));
+
+        String sql = """
+                SELECT fg.film_id, g.id, g.name
+                FROM film_genres fg
+                JOIN genres g ON fg.genre_id = g.id
+                WHERE fg.film_id IN (%s)
+                ORDER BY fg.film_id, g.id
+                """.formatted(inSql);
+
+        return jdbc.query(sql, rs -> {
+            Map<Long, List<Genre>> result = new HashMap<>();
+
+            while (rs.next()) {
+                long filmId = rs.getLong("film_id");
+
+                Genre genre = new Genre(
+                        rs.getLong("id"),
+                        rs.getString("name")
+                );
+
+                result.computeIfAbsent(filmId, k -> new ArrayList<>())
+                        .add(genre);
+            }
+
+            return result;
+        }, filmIds.toArray());
+    }
+
+    private Film mapRow(ResultSet rs, int rowNum) throws SQLException {
         Film film = new Film();
 
         film.setId(rs.getLong("id"));
@@ -181,7 +213,6 @@ public class FilmDbStorage implements FilmStorage {
                 rs.getString("mpa_name")
         ));
 
-        film.setGenres(getGenres(film.getId()));
 
         return film;
     }
@@ -199,7 +230,7 @@ public class FilmDbStorage implements FilmStorage {
                 genres.size(),
                 (ps, genre) -> {
                     ps.setLong(1, filmId);
-                    ps.setInt(2, genre.getId());
+                    ps.setLong(2, genre.getId());
                 }
         );
     }

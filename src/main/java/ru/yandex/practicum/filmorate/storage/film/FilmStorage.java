@@ -3,6 +3,7 @@ package ru.yandex.practicum.filmorate.storage.film;
 import ru.yandex.practicum.filmorate.model.Film;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 
@@ -25,9 +26,11 @@ public interface FilmStorage {
 
     List<Film> findPopular(int count);
 
-    void setGenres(long filmId, List<Integer> genreIds);
+    void setGenres(long filmId, List<Long> genreIds);
 
     List<Genre> getGenres(long filmId);
+
+    Map<Long, List<Genre>> getGenresByFilmIds(List<Long> filmIds);
 }
 
 
