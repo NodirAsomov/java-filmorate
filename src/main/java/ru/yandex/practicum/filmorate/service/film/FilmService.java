@@ -6,7 +6,6 @@ import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.Film;
 import ru.yandex.practicum.filmorate.model.Genre;
-import ru.yandex.practicum.filmorate.service.genre.GenreService;
 import ru.yandex.practicum.filmorate.service.mparating.MpaService;
 import ru.yandex.practicum.filmorate.storage.film.FilmStorage;
 import ru.yandex.practicum.filmorate.storage.user.UserStorage;
@@ -22,7 +21,6 @@ public class FilmService {
     private final FilmStorage filmStorage;
     private final UserStorage userStorage;
     private final MpaService mpaService;
-    private final GenreService genreService;
 
     public Film createFilm(Film film) {
         validateFilm(film);
@@ -41,7 +39,6 @@ public class FilmService {
 
     public Film getFilm(long id) {
         Film film = getFilmOrThrow(id);
-        enrichFilm(film);
         return film;
     }
 
@@ -109,18 +106,14 @@ public class FilmService {
                 .distinct()
                 .toList();
 
-        List<Genre> genresFromDb = genreService.getByIds(ids);
-
-        if (genresFromDb.size() != ids.size()) {
-            throw new ValidationException("Один из жанров не существует");
-        }
-
-        film.setGenres(genresFromDb);
+        film.setGenres(
+                ids.stream()
+                        .distinct()
+                        .map(Genre::fromId)
+                        .toList()
+        );
     }
 
-    private void enrichFilm(Film film) {
-        film.setGenres(filmStorage.getGenres(film.getId()));
-    }
 
     private void enrichFilms(List<Film> films) {
         if (films.isEmpty()) {

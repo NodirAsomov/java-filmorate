@@ -199,6 +199,7 @@ public class FilmDbStorage implements FilmStorage {
         }, filmIds.toArray());
     }
 
+
     private Film mapRow(ResultSet rs, int rowNum) throws SQLException {
         Film film = new Film();
 
@@ -213,9 +214,12 @@ public class FilmDbStorage implements FilmStorage {
                 rs.getString("mpa_name")
         ));
 
+        List<Genre> genres = getGenres(film.getId());
+        film.setGenres(genres);
 
         return film;
     }
+
 
     private void updateGenres(long filmId, List<Genre> genres) {
         jdbc.update("DELETE FROM film_genres WHERE film_id = ?", filmId);
