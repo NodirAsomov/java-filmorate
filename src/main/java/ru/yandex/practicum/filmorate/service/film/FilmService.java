@@ -15,6 +15,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
+
 @Service
 @RequiredArgsConstructor
 public class FilmService {
@@ -26,15 +27,35 @@ public class FilmService {
 
     public Film createFilm(Film film) {
         validateFilm(film);
-        enrichForSave(film);
-        return filmStorage.create(film);
+
+        enrichMpa(film);
+        List<Genre> genres = prepareGenres(film);
+
+        Film created = filmStorage.create(film);
+
+        if (!genres.isEmpty()) {
+            filmStorage.setGenres(created.getId(),
+                    genres.stream().map(Genre::getId).toList());
+        }
+
+        created.setGenres(genres);
+        return created;
     }
 
     public Film updateFilm(Film film) {
         getFilmOrThrow(film.getId());
         validateFilm(film);
-        enrichForSave(film);
-        return filmStorage.update(film);
+
+        enrichMpa(film);
+        List<Genre> genres = prepareGenres(film);
+
+        Film updated = filmStorage.update(film);
+
+        filmStorage.setGenres(updated.getId(),
+                genres.stream().map(Genre::getId).toList());
+
+        updated.setGenres(genres);
+        return updated;
     }
 
     public Film getFilm(long id) {
@@ -72,6 +93,56 @@ public class FilmService {
     }
 
 
+    private void enrichMpa(Film film) {
+        film.setMpa(mpaService.getById(film.getMpa().getId()));
+    }
+
+    private List<Genre> prepareGenres(Film film) {
+        if (film.getGenres() == null || film.getGenres().isEmpty()) {
+            return List.of();
+        }
+
+        List<Long> ids = film.getGenres().stream()
+                .map(Genre::getId)
+                .distinct()
+                .toList();
+
+        List<Genre> genresFromDb = genreStorage.findByIds(ids);
+
+        if (genresFromDb.size() != ids.size()) {
+            throw new NotFoundException("Один из жанров не существует");
+        }
+
+        return genresFromDb;
+    }
+
+    private void enrichFilms(List<Film> films) {
+        if (films.isEmpty()) return;
+
+        List<Long> filmIds = films.stream()
+                .map(Film::getId)
+                .toList();
+
+        Map<Long, List<Genre>> map =
+                filmStorage.getGenresByFilmIds(filmIds);
+
+        for (Film film : films) {
+            film.setGenres(map.getOrDefault(film.getId(), List.of()));
+        }
+    }
+
+    private Film getFilmOrThrow(long id) {
+        return filmStorage.findById(id)
+                .orElseThrow(() ->
+                        new NotFoundException("Фильм с id " + id + " не найден"));
+    }
+
+    private void getUserOrThrow(long id) {
+        userStorage.findById(id)
+                .orElseThrow(() ->
+                        new NotFoundException("Пользователь с id " + id + " не найден"));
+    }
+
     private void validateFilm(Film film) {
         if (film.getName() == null || film.getName().isBlank()) {
             throw new ValidationException("Название не может быть пустым");
@@ -93,57 +164,5 @@ public class FilmService {
         if (film.getMpa() == null) {
             throw new ValidationException("MPA обязателен");
         }
-    }
-
-
-    private void enrichForSave(Film film) {
-        film.setMpa(mpaService.getById(film.getMpa().getId()));
-
-        if (film.getGenres() == null || film.getGenres().isEmpty()) {
-            film.setGenres(List.of());
-            return;
-        }
-
-        List<Long> ids = film.getGenres().stream()
-                .map(Genre::getId)
-                .distinct()
-                .toList();
-
-        List<Genre> genresFromDb = genreStorage.findByIds(ids);
-
-        if (genresFromDb.size() != ids.size()) {
-            throw new NotFoundException("Один из жанров не существует");
-        }
-
-        film.setGenres(genresFromDb);
-    }
-
-
-    private void enrichFilms(List<Film> films) {
-        if (films.isEmpty()) return;
-
-        List<Long> filmIds = films.stream()
-                .map(Film::getId)
-                .toList();
-
-        Map<Long, List<Genre>> map =
-                filmStorage.getGenresByFilmIds(filmIds);
-
-        for (Film film : films) {
-            film.setGenres(map.getOrDefault(film.getId(), List.of()));
-        }
-    }
-
-
-    private Film getFilmOrThrow(long id) {
-        return filmStorage.findById(id)
-                .orElseThrow(() ->
-                        new NotFoundException("Фильм с id " + id + " не найден"));
-    }
-
-    private void getUserOrThrow(long id) {
-        userStorage.findById(id)
-                .orElseThrow(() ->
-                        new NotFoundException("Пользователь с id " + id + " не найден"));
     }
 }

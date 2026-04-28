@@ -38,10 +38,8 @@ public class FilmDbStorage implements FilmStorage {
             return ps;
         }, keyHolder);
 
-        long id = keyHolder.getKey().longValue();
+        long id = Objects.requireNonNull(keyHolder.getKey()).longValue();
         film.setId(id);
-
-        updateGenres(id, film.getGenres());
 
         return findById(id).orElseThrow();
     }
@@ -61,14 +59,12 @@ public class FilmDbStorage implements FilmStorage {
                 film.getId()
         );
 
-        updateGenres(film.getId(), film.getGenres());
-
         return findById(film.getId()).orElseThrow();
     }
 
     @Override
     public Optional<Film> findById(long id) {
-        return jdbc.query("""
+        List<Film> result = jdbc.query("""
                         SELECT f.*, m.name AS mpa_name
                         FROM films f
                         JOIN mpa m ON f.mpa_id = m.id
@@ -76,7 +72,9 @@ public class FilmDbStorage implements FilmStorage {
                         """,
                 this::mapRow,
                 id
-        ).stream().findFirst();
+        );
+
+        return result.stream().findFirst();
     }
 
     @Override
@@ -126,6 +124,7 @@ public class FilmDbStorage implements FilmStorage {
                 count
         );
     }
+
 
     @Override
     public void setGenres(long filmId, List<Long> genreIds) {
@@ -198,6 +197,7 @@ public class FilmDbStorage implements FilmStorage {
         }, filmIds.toArray());
     }
 
+
     private Film mapRow(ResultSet rs, int rowNum) throws SQLException {
         Film film = new Film();
 
@@ -214,23 +214,5 @@ public class FilmDbStorage implements FilmStorage {
 
 
         return film;
-    }
-
-    private void updateGenres(long filmId, List<Genre> genres) {
-        jdbc.update("DELETE FROM film_genres WHERE film_id = ?", filmId);
-
-        if (genres == null || genres.isEmpty()) {
-            return;
-        }
-
-        jdbc.batchUpdate(
-                "INSERT INTO film_genres (film_id, genre_id) VALUES (?, ?)",
-                genres,
-                genres.size(),
-                (ps, genre) -> {
-                    ps.setLong(1, filmId);
-                    ps.setLong(2, genre.getId());
-                }
-        );
     }
 }
