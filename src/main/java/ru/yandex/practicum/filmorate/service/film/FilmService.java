@@ -8,6 +8,7 @@ import ru.yandex.practicum.filmorate.model.Film;
 import ru.yandex.practicum.filmorate.model.Genre;
 import ru.yandex.practicum.filmorate.service.mparating.MpaService;
 import ru.yandex.practicum.filmorate.storage.film.FilmStorage;
+import ru.yandex.practicum.filmorate.storage.genre.GenreStorage;
 import ru.yandex.practicum.filmorate.storage.user.UserStorage;
 
 import java.time.LocalDate;
@@ -21,6 +22,7 @@ public class FilmService {
     private final FilmStorage filmStorage;
     private final UserStorage userStorage;
     private final MpaService mpaService;
+    private final GenreStorage genreStorage;
 
     public Film createFilm(Film film) {
         validateFilm(film);
@@ -30,15 +32,19 @@ public class FilmService {
 
     public Film updateFilm(Film film) {
         getFilmOrThrow(film.getId());
-
         validateFilm(film);
         enrichFilmForSave(film);
-
         return filmStorage.update(film);
     }
 
     public Film getFilm(long id) {
         Film film = getFilmOrThrow(id);
+
+        Map<Long, List<Genre>> map =
+                filmStorage.getGenresByFilmIds(List.of(id));
+
+        film.setGenres(map.getOrDefault(id, List.of()));
+
         return film;
     }
 
@@ -96,7 +102,6 @@ public class FilmService {
     private void enrichFilmForSave(Film film) {
         film.setMpa(mpaService.getById(film.getMpa().getId()));
 
-
         if (film.getGenres() == null || film.getGenres().isEmpty()) {
             throw new ValidationException("У фильма должен быть хотя бы один жанр");
         }
@@ -106,14 +111,14 @@ public class FilmService {
                 .distinct()
                 .toList();
 
-        film.setGenres(
-                ids.stream()
-                        .distinct()
-                        .map(Genre::fromId)
-                        .toList()
-        );
-    }
+        List<Genre> genresFromDb = genreStorage.findByIds(ids);
 
+        if (genresFromDb.size() != ids.size()) {
+            throw new NotFoundException("Один из жанров не существует");
+        }
+
+        film.setGenres(genresFromDb);
+    }
 
     private void enrichFilms(List<Film> films) {
         if (films.isEmpty()) {
@@ -124,10 +129,13 @@ public class FilmService {
                 .map(Film::getId)
                 .toList();
 
-        Map<Long, List<Genre>> genresMap = filmStorage.getGenresByFilmIds(filmIds);
+        Map<Long, List<Genre>> genresMap =
+                filmStorage.getGenresByFilmIds(filmIds);
 
         for (Film film : films) {
-            film.setGenres(genresMap.getOrDefault(film.getId(), List.of()));
+            film.setGenres(
+                    genresMap.getOrDefault(film.getId(), List.of())
+            );
         }
     }
 

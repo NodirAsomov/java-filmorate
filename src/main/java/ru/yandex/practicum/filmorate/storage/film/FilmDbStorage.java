@@ -214,9 +214,6 @@ public class FilmDbStorage implements FilmStorage {
                 rs.getString("mpa_name")
         ));
 
-        List<Genre> genres = getGenres(film.getId());
-        film.setGenres(genres);
-
         return film;
     }
 
