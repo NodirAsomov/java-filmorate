@@ -10,107 +10,88 @@ import ru.yandex.practicum.filmorate.storage.user.UserStorage;
 import java.time.LocalDate;
 import java.util.List;
 
-
 @Service
 @RequiredArgsConstructor
 public class UserService {
 
+
     private final UserStorage userStorage;
 
-
     public User createUser(User user) {
-        validateUser(user);
+        validate(user);
+
         if (user.getName() == null || user.getName().isBlank()) {
             user.setName(user.getLogin());
         }
-        return userStorage.addUser(user);
+
+        return userStorage.create(user);
     }
 
     public User updateUser(User user) {
-        validateUser(user);
+        validate(user);
         getUserOrThrow(user.getId());
+
         if (user.getName() == null || user.getName().isBlank()) {
             user.setName(user.getLogin());
         }
-        return userStorage.updateUser(user);
+
+        return userStorage.update(user);
     }
 
     public User getUser(long id) {
         return getUserOrThrow(id);
     }
 
-    public void deleteUser(long id) {
-        getUserOrThrow(id);
-        userStorage.deleteUser(id);
-    }
-
     public List<User> getAllUsers() {
-        return userStorage.getAllUsers();
+        return userStorage.findAll();
     }
 
 
     public void addFriend(long userId, long friendId) {
-        validateDifferentUsers(userId, friendId);
-        User user = getUserOrThrow(userId);
-        User friend = getUserOrThrow(friendId);
-
-        if (!user.getFriends().add(friendId)) {
-            throw new ValidationException("Пользователь уже в друзьях");
-        }
-        friend.getFriends().add(userId);
+        checkUsers(userId, friendId);
+        userStorage.addFriend(userId, friendId);
     }
 
     public void removeFriend(long userId, long friendId) {
-        validateDifferentUsers(userId, friendId);
-        User user = getUserOrThrow(userId);
-        User friend = getUserOrThrow(friendId);
-
-        user.getFriends().remove(friendId);
-        friend.getFriends().remove(userId);
+        checkUsers(userId, friendId);
+        userStorage.removeFriend(userId, friendId);
     }
 
     public List<User> getFriends(long userId) {
-        User user = getUserOrThrow(userId);
-        return user.getFriends().stream()
-                .map(this::getUserOrThrow)
-                .toList();
+        getUserOrThrow(userId);
+        return userStorage.getFriends(userId);
     }
 
     public List<User> getCommonFriends(long userId, long otherId) {
-        validateDifferentUsers(userId, otherId);
-        User user = getUserOrThrow(userId);
-        User other = getUserOrThrow(otherId);
-
-        return user.getFriends().stream()
-                .filter(other.getFriends()::contains)
-                .map(this::getUserOrThrow)
-                .toList();
+        checkUsers(userId, otherId);
+        return userStorage.getCommonFriends(userId, otherId);
     }
 
 
-    private User getUserOrThrow(long userId) {
-        return userStorage.getUser(userId)
-                .orElseThrow(() ->
-                        new NotFoundException("Пользователь с id " + userId + " не найден")
-                );
-    }
-
-
-    private void validateDifferentUsers(long firstId, long secondId) {
-        if (firstId == secondId) {
-            throw new ValidationException("Операция с одним и тем же пользователем недопустима");
-        }
-    }
-
-    private void validateUser(User user) {
+    private void validate(User user) {
         if (user.getEmail() == null || !user.getEmail().contains("@")) {
-            throw new ValidationException("Email должен содержать символ @");
+            throw new ValidationException("Email должен содержать @");
         }
+
         if (user.getLogin() == null || user.getLogin().isBlank() || user.getLogin().contains(" ")) {
             throw new ValidationException("Логин не может быть пустым или содержать пробелы");
         }
+
         if (user.getBirthday() != null && user.getBirthday().isAfter(LocalDate.now())) {
             throw new ValidationException("Дата рождения не может быть в будущем");
         }
+    }
+
+    private User getUserOrThrow(long id) {
+        return userStorage.findById(id)
+                .orElseThrow(() -> new NotFoundException("Пользователь с id " + id + " не найден"));
+    }
+
+    private void checkUsers(long a, long b) {
+        if (a == b) {
+            throw new ValidationException("Нельзя выполнять операцию с самим собой");
+        }
+        getUserOrThrow(a);
+        getUserOrThrow(b);
     }
 }

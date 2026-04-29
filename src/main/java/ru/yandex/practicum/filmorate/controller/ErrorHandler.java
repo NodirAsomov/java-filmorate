@@ -9,7 +9,6 @@ import ru.yandex.practicum.filmorate.exception.ValidationException;
 
 import java.util.Map;
 
-
 @RestControllerAdvice
 public class ErrorHandler {
 
@@ -25,12 +24,10 @@ public class ErrorHandler {
         return Map.of("error", e.getMessage());
     }
 
-    @ExceptionHandler(Throwable.class)
+
+    @ExceptionHandler(Exception.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
-    public Map<String, String> handleOtherExceptions(Throwable e) {
+    public Map<String, String> handleAny(Exception e) {
         return Map.of("error", "Произошла непредвиденная ошибка");
     }
 }
-
-
-
